@@ -19,6 +19,7 @@
   --anotacion: #3ddc84;
   --pausa: #93a1bb;
   --vivo: #ff5a5f;
+  --vivo-texto: #2b0507;
   --pasto: #1f6b3f;
   --pasto-linea: rgba(255, 255, 255, 0.45);
   --radio: 14px;
@@ -40,11 +41,12 @@
     --pase: #0b5cad;
     --carrera: #a85400;
     --patada: #6a3fc0;
-    --penal: #8a6a00;
+    --penal: #7a5d00;
     --perdida: #b3261e;
     --anotacion: #0f7a3d;
     --pausa: #5b667c;
     --vivo: #c62828;
+    --vivo-texto: #ffffff;
     --pasto: #2e8b57;
     --sombra: 0 4px 14px rgba(20, 30, 60, 0.08);
 }
@@ -106,8 +108,8 @@ a { color: var(--enlace); }
   background: var(--superficie-2); color: var(--texto-suave);
   font-size: 0.82rem; font-weight: 700; letter-spacing: 0.01em;
 }
-.sello-vivo { background: var(--vivo); color: #fff; }
-.sello-vivo::before { content: ""; display: inline-block; width: 0.5rem; height: 0.5rem; margin-right: 0.4rem; border-radius: 50%; background: #fff; animation: latido 1.4s ease-in-out infinite; }
+.sello-vivo { background: var(--vivo); color: var(--vivo-texto); }
+.sello-vivo::before { content: ""; display: inline-block; width: 0.5rem; height: 0.5rem; margin-right: 0.4rem; border-radius: 50%; background: currentColor; animation: latido 1.4s ease-in-out infinite; }
 .sello-final { color: var(--texto); }
 .sello-repeticion { background: color-mix(in srgb, var(--patada) 22%, var(--superficie-2)); color: var(--texto); }
 
