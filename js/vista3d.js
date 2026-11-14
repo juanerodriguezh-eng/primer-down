@@ -16,7 +16,7 @@ const LEJOS_CAMARA = Math.hypot(ALTO_CAMARA, FONDO_CAMARA + ANCHO_CANCHA / 2);
 const suave = (u) => { const x = limitar(u, 0, 1); return x * x * (3 - 2 * x); };
 
 let THREE = null;
-let EXTRA = null; // addons de Three.js (entorno, bloom, grano, estela); si no cargan, la vista funciona sin ellos
+let EXTRA = null; // addons de Three.js (entorno, bloom, grano); si no cargan, la vista funciona sin ellos
 let cargaDeThree = null;
 const cargarThree = () => {
   if (!cargaDeThree) {
@@ -25,7 +25,7 @@ const cargarThree = () => {
       try {
         const partes = await Promise.all([
           import('./vendor/RoomEnvironment.js'), import('./vendor/EffectComposer.js'), import('./vendor/RenderPass.js'), import('./vendor/ShaderPass.js'),
-          import('./vendor/UnrealBloomPass.js'), import('./vendor/OutputPass.js'), import('./vendor/AfterimagePass.js'),
+          import('./vendor/UnrealBloomPass.js'), import('./vendor/OutputPass.js'),
         ]);
         EXTRA = Object.assign({}, ...partes);
       } catch { EXTRA = null; }
@@ -697,8 +697,15 @@ function construirVista() {
   ejeBalon.add(balon);
   escena.add(ejeBalon);
 
+  // Estela del balón en los pases largos y las patadas: copias que se apagan detrás del balón.
+  const ESTELA = 40;
+  const estelaBalon = new THREE.InstancedMesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), ESTELA);
+  estelaBalon.visible = false; estelaBalon.frustumCulled = false;
+  estelaBalon.setColorAt(0, new THREE.Color(0, 0, 0));
+  escena.add(estelaBalon);
+
   // Bandera amarilla de los penales.
-  const bandera = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.3), new THREE.MeshLambertMaterial({ color: '#ffd400' }));
+  const bandera =new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.3), new THREE.MeshLambertMaterial({ color: '#ffd400' }));
   bandera.castShadow = true; bandera.visible = false;
   escena.add(bandera);
 
@@ -717,14 +724,14 @@ function construirVista() {
   const medidor = crearMedidorDeCalidad({ nivel: guardada ?? 2 });
 
   vista = {
-    medidor, calidad: -1, compositor: null, grano: null, estela: null, bloom: null,
+    medidor, calidad: -1, compositor: null, grano: null, bloom: null, estelaBalon, ESTELA,
     lienzoGL, render, escena, camara, foco, cancha, postes, lineaGolpeo, lineaMarca, cartelPasto, texturaCartel: null, claveCartel: '', ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
     chica, jugadores: [], uniformes: new Map(), texturaCancha: null, claveCancha: '', sesion: null,
   };
   return vista;
 }
 
-// Cadena de efectos de la calidad alta: escena -> bloom de los focos -> estela -> ACES -> grano. Se arma la primera vez que hace falta.
+// Cadena de efectos de la calidad alta: escena -> bloom de los focos -> ACES -> grano. Se arma la primera vez que hace falta.
 function armarCompositor(v) {
   if (v.compositor || !EXTRA?.EffectComposer) return v.compositor;
   try {
@@ -733,9 +740,6 @@ function armarCompositor(v) {
     c.addPass(new EXTRA.RenderPass(v.escena, v.camara));
     v.bloom = new EXTRA.UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.5, 1.7);
     c.addPass(v.bloom);
-    v.estela = new EXTRA.AfterimagePass(0);
-    v.estela.enabled = false;
-    c.addPass(v.estela);
     c.addPass(new EXTRA.OutputPass());
     v.grano = new EXTRA.ShaderPass(SOMBREADOR_DE_GRANO);
     c.addPass(v.grano);
@@ -960,6 +964,25 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const camaraFondo = (linea.desde + linea.hasta) / 2 < 50 ? -24 : 124; // la cámara de repetición no cambia de lado a media jugada
   const banderaEv = linea.eventos.find((e) => e.tipo === 'bandera') || null;
 
+  // vuelos largos del balón (pases de 18 yardas o más y patadas): ahí va la estela.
+  // Con "reducir movimiento" no hay estela ni temblor de cámara.
+  const quieto = sinMovimiento();
+  const vuelosLargos = [];
+  if (!quieto) {
+    let inicio = null;
+    for (let s = 0; s <= linea.duracion + 0.05; s += 0.05) {
+      const b = muestrear(linea, Math.min(s, linea.duracion)).balon;
+      if (b.enAire && !inicio) inicio = { t: s, x: b.x, z: b.z };
+      if ((!b.enAire || s >= linea.duracion) && inicio) {
+        if (Math.hypot(b.x - inicio.x, b.z - inicio.z) >= 18) vuelosLargos.push({ t0: inicio.t, t1: s });
+        inicio = null;
+      }
+    }
+  }
+  contenedor.dataset.vuelosLargos = String(vuelosLargos.length);
+  const rastro = []; // posiciones recientes del balón en un vuelo largo
+  const colorEstela = new THREE.Color();
+  const temblor = !quieto && !opciones.porTramos; // cámara en mano: solo en las repeticiones
   const medir = () => {
     const ancho = Math.max(200, Math.round(marco.clientWidth || contenedor.clientWidth || 328));
     const alto = Math.round(ancho * (ancho < 520 ? 0.75 : 0.56));
@@ -1046,6 +1069,14 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     fovFijo = false;
     v.camara.fov = fov;
     v.camara.lookAt(mirada);
+    if (temblor && modo !== 'transmision') {
+      // Cámara en mano: un vaivén leve e irregular, proporcional al zoom para que se note igual de cerca que de lejos.
+      const a = (fov * Math.PI / 180) * 0.011;
+      const r = t / velocidad;
+      v.camara.rotateX(a * (Math.sin(r * 5.1) + 0.6 * Math.sin(r * 11.3 + 1.2)) * 0.55);
+      v.camara.rotateY(a * (Math.sin(r * 4.3 + 2) + 0.6 * Math.sin(r * 9.7)) * 0.55);
+      v.camara.rotateZ(a * 0.45 * Math.sin(r * 3.1 + 0.5));
+    }
     v.camara.updateProjectionMatrix();
     v.foco.position.set(mirada.x - 26, 62, mirada.z + 34);
     v.foco.target.position.set(mirada.x, 0, mirada.z);
@@ -1078,6 +1109,34 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     } else {
       v.ejeBalon.rotation.set(0, linea.sentido > 0 ? 0 : Math.PI, 0);
       v.balon.rotation.set(0, 0, -Math.PI / 2 + (b.portador ? 0.5 : 0));
+    }
+    // Estela del balón en los vuelos largos.
+    const enVueloLargo = vuelosLargos.some((x) => t >= x.t0 && t <= x.t1);
+    if (rastro.length && t < rastro[rastro.length - 1].t) rastro.length = 0; // la jugada volvió a empezar
+    if (enVueloLargo && b.enAire && (!rastro.length || t - rastro[rastro.length - 1].t >= 0.02)) rastro.push({ t, x: b.x, y: b.y, z: b.z });
+    while (rastro.length && (t - rastro[0].t > 0.5 || rastro.length > 60)) rastro.shift();
+    v.estelaBalon.visible = rastro.length > 1 && v.calidad >= 1;
+    if (v.estelaBalon.visible) {
+      // La estela es continua: sus copias se reparten por el camino reciente del balón, no por cuadros dibujados.
+      const DURA = 0.42;
+      let k = rastro.length - 1;
+      for (let i = 0; i < v.ESTELA; i++) {
+        const cuando = t - ((i + 1) / v.ESTELA) * DURA;
+        while (k > 0 && rastro[k - 1].t >= cuando) k--;
+        const p1 = rastro[k]; const p0 = rastro[Math.max(0, k - 1)];
+        const hay = cuando >= rastro[0].t;
+        const u = hay && p1.t > p0.t ? limitar((cuando - p0.t) / (p1.t - p0.t), 0, 1) : 1;
+        const vida = hay ? 1 - (i + 1) / v.ESTELA : 0;
+        tmpObj.position.set(mezclar(p0.x, p1.x, u), hay ? mezclar(p0.y, p1.y, u) : -50, mezclar(p0.z, p1.z, u));
+        tmpObj.rotation.set(0, 0, 0);
+        tmpObj.scale.setScalar(0.3 + 0.7 * vida);
+        tmpObj.updateMatrix();
+        v.estelaBalon.setMatrixAt(i, tmpObj.matrix);
+        v.estelaBalon.setColorAt(i, colorEstela.setScalar(0.1 * vida * vida));
+      }
+      tmpObj.scale.setScalar(1);
+      v.estelaBalon.instanceMatrix.needsUpdate = true;
+      v.estelaBalon.instanceColor.needsUpdate = true;
     }
     // Bandera amarilla: sale volando y cae cerca de la falta.
     if (banderaEv && t >= banderaEv.t) {

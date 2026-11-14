@@ -457,3 +457,16 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **No comprobado:** los movimientos en movimiento. Solo vi instantes congelados; que la carrera, el lanzamiento y el tacleo se vean naturales al reproducirse hay que mirarlo en un navegador normal.
 - **Nota de horas:** las dos anotaciones anteriores de este turno tenían la hora adelantada; corregidas con el reloj real.
 - **Sigue:** 4) temblor de cámara en mano y estela en los pases largos.
+
+### Punto 4, cámara en mano y estela del balón — HECHO Y VERIFICADO (sáb 14, 08:58)
+- **Temblor de cámara en mano** en "Repetición" y "A ras de cancha": un vaivén leve e irregular, proporcional al zoom. La cámara de TV principal y las jugadas clásicas por pasos quedan firmes.
+- **Estela del balón** en los vuelos largos (pases de 18 yardas o más, despejes, patadas de salida y goles de campo): 40 copias que se apagan a lo largo del camino reciente del balón. En el partido del jueves, 52 jugadas la tienen.
+- **`prefers-reduced-motion`** desactiva el temblor, la estela y la cortina. (Además, con esa preferencia la vista 3D ni se ofrece: se muestra la pizarra 2D, como ya pasaba.) En calidad baja tampoco hay estela.
+- **Me corregí (importante):** la primera versión sumaba un desenfoque de movimiento a pantalla completa (`AfterimagePass`). La hoja de contactos mostró que dejaba fantasmas de **toda la cancha** cada vez que la cámara se movía, y hasta cambiaba los colores de los uniformes. Lo quité entero (y borré sus dos archivos de `js/vendor/`): queda solo la estela del balón. Quedan 11 addons en `js/vendor/`.
+- **Verificación:** `npm test` → 154 de 154. `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` (28 páginas; nueva `vista-3d-pase-largo`). Captura mirada a ojo: `hoja-estela.png`.
+- **No comprobado:** el temblor en movimiento (en un cuadro congelado no se ve) y si su intensidad resulta agradable; si molesta, es el factor `0.011` de `moverCamara` en `js/vista3d.js`.
+
+### Punto 5, texto del fumble — HECHO Y VERIFICADO (sáb 14, 08:58)
+- Antes: "Pierde el balón (fumble), forzado por N. Bonitto y lo recupera N. Bonitto para los Broncos". Ahora: **"N. Bonitto le quita el balón (fumble) y él mismo lo recupera para los Broncos: cambio de posesión."** Cuando son dos jugadores distintos se siguen nombrando los dos (`js/motor.js`, `fraseBalonSuelto`).
+- Nuevo `pruebas/fumble.test.mjs` (3 pruebas): la jugada real de Bonitto con su texto, y un barrido de las 39 jugadas con fumble de los 16 partidos guardados (2 son del mismo jugador; ninguna repite el nombre).
+- **Sigue:** 6) `PROMPTS-FABLE.md`, capturas para el README y cierre.

@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/AfterimagePass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/vendor/AfterimageShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -76,6 +76,9 @@ const PAGINAS = [
   ] },
   { nombre: 'vista-3d-calidad-alta', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8&camara=cancha&calidad=alta', gl: true, revisar: (dom) => [
     ['con calidad alta pedida se dibuja con todos los efectos (entorno, bloom y grano cargan)', /<div class="vista3d"[^>]*data-calidad="alta"/.test(dom) && /<div class="vista3d"[^>]*data-estado="congelada"/.test(dom)],
+  ] },
+  { nombre: 'vista-3d-pase-largo', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=35&pizarra=3d&t3d=4.2&camara=cancha&calidad=alta', gl: true, revisar: (dom) => [
+    ['un pase largo tiene su tramo de estela del balón', /<div class="vista3d"[^>]*data-vuelos-largos="1"/.test(dom) && /<div class="vista3d"[^>]*data-estado="congelada"/.test(dom)],
   ] },
   { nombre: 'vista-3d-calidad-baja', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8&camara=cancha&calidad=baja', gl: true, revisar: (dom) => [
     ['con calidad baja la vista también dibuja (sin sombras ni efectos)', /<div class="vista3d"[^>]*data-calidad="baja"/.test(dom) && /<div class="vista3d"[^>]*data-jugadores="22"/.test(dom)],
