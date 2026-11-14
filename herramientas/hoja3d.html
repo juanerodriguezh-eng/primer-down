@@ -25,6 +25,7 @@
     const vista = document.getElementById('vista');
     vista.style.width = `${ancho}px`;
     const hoja = document.getElementById('hoja');
+    if (q.has('limpio')) { document.body.style.padding = '0'; hoja.style.gap = '0'; } // &limpio=1: solo las imágenes, sin pies ni márgenes (capturas para el README)
     try {
       const summary = await (await fetch(`../datos/partidos/${(q.get('id') || '401873052').replace(/\D/g, '')}.json`)).json();
       const p = construirPartido(summary);
@@ -48,7 +49,8 @@
         const fig = document.createElement('figure');
         const pie = document.createElement('figcaption');
         pie.textContent = `${camara} · t=${t.toFixed(1)} de ${linea.duracion.toFixed(1)} · ${linea.forma}`;
-        fig.append(copia, pie);
+        fig.append(copia);
+        if (!q.has('limpio')) fig.append(pie);
         hoja.append(fig);
       }
       document.body.dataset.listo = '1';
