@@ -7,6 +7,11 @@ import { muestrear, ANCHO_CANCHA } from './jugada3d.js';
 const MEDIO = ANCHO_CANCHA / 2;
 const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
 const mezclar = (a, b, u) => a + (b - a) * u;
+const grados = (rad) => rad * 180 / Math.PI;
+// Cámara principal (en yardas): 30 de alto (27 m) y 48 detrás de la banda cercana (unos 74 m hasta el centro de la cancha).
+const ALTO_CAMARA = 30;
+const FONDO_CAMARA = 48;
+const LEJOS_CAMARA = Math.hypot(ALTO_CAMARA, FONDO_CAMARA + ANCHO_CANCHA / 2);
 const suave = (u) => { const x = limitar(u, 0, 1); return x * x * (3 - 2 * x); };
 
 let THREE = null;
@@ -418,15 +423,19 @@ function construirVista() {
 
   // Postes amarillos al fondo de cada zona de anotación.
   const matPoste = new THREE.MeshLambertMaterial({ color: '#ffd23f' });
+  const postes = [];
   for (const [px, signo] of [[-10, 1], [110, -1]]) {
+    const grupoPoste = new THREE.Group();
+    postes.push(grupoPoste);
+    escena.add(grupoPoste);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.33, 8), matPoste); base.position.set(px - signo * 1.2, 1.66, MEDIO);
     const cuello = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), matPoste); cuello.rotation.z = Math.PI / 2; cuello.position.set(px - signo * 0.6, 3.33, MEDIO);
     const travesano = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 6.17, 8), matPoste); travesano.rotation.x = Math.PI / 2; travesano.position.set(px, 3.33, MEDIO);
-    escena.add(base, cuello, travesano);
+    grupoPoste.add(base, cuello, travesano);
     for (const lado of [-1, 1]) {
       const vertical = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 10, 8), matPoste);
       vertical.position.set(px, 8.33, MEDIO + lado * 3.085);
-      escena.add(vertical);
+      grupoPoste.add(vertical);
     }
     for (const m of [base, travesano]) m.castShadow = true;
   }
@@ -448,7 +457,7 @@ function construirVista() {
 
   // Balón.
   const balon = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), new THREE.MeshLambertMaterial({ map: texturaDeBalon() }));
-  balon.scale.set(1, 1.65, 1); // alargado sobre su eje Y; se orienta al dibujar
+  balon.scale.set(1.5, 2.5, 1.5); // alargado sobre su eje Y; se orienta al dibujar. Va un 50 % más grande que el real para que se vea en el celular.
   balon.castShadow = true;
   const ejeBalon = new THREE.Group();
   ejeBalon.add(balon);
@@ -469,7 +478,7 @@ function construirVista() {
   escena.add(grupoJugadores);
 
   vista = {
-    lienzoGL, render, escena, camara, foco, cancha, lineaGolpeo, lineaMarca, ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
+    lienzoGL, render, escena, camara, foco, cancha, postes, lineaGolpeo, lineaMarca, ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
     chica, jugadores: [], uniformes: new Map(), texturaCancha: null, claveCancha: '', sesion: null,
   };
   return vista;
@@ -520,7 +529,9 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const bRepetir = boton('Ver de nuevo');
   const bRepeticion = boton('Repetición');
   bRepeticion.title = 'Otro ángulo, desde detrás de la zona de anotación, en cámara lenta';
-  botones.append(bRepetir, bRepeticion);
+  const bCancha = boton('A ras de cancha');
+  bCancha.title = 'Desde la banda, a la altura de los jugadores, en cámara lenta';
+  botones.append(bRepetir, bRepeticion, bCancha);
   contenedor.append(marco, texto, aviso, botones);
 
   // --- Escena de esta jugada ---
@@ -579,15 +590,19 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   let visible = true;
   let cuadros = 0;
   let giroBalon = 0;
+  let fovFijo = true; // el primer cuadro después de un salto pone el plano directo, sin transición
   let confetiDesde = -1;
   const piezas = [];
   const eventosDeZoom = linea.eventos.filter((e) => ['atrapada', 'tacleo', 'intercepcion', 'touchdown', 'incompleto'].includes(e.tipo));
   const tTouchdown = linea.eventos.find((e) => e.tipo === 'touchdown')?.t ?? null;
+  const esGolDeCampo = linea.forma === 'gol-de-campo';
+  const posteX = linea.sentido > 0 ? 110 : -10;
+  const camaraFondo = (linea.desde + linea.hasta) / 2 < 50 ? -24 : 124; // la cámara de repetición no cambia de lado a media jugada
   const banderaEv = linea.eventos.find((e) => e.tipo === 'bandera') || null;
 
   const medir = () => {
     const ancho = Math.max(200, Math.round(marco.clientWidth || contenedor.clientWidth || 328));
-    const alto = Math.round(ancho * (ancho < 520 ? 0.68 : 0.56));
+    const alto = Math.round(ancho * (ancho < 520 ? 0.75 : 0.56));
     v.render.setSize(ancho, alto, false);
     v.lienzoGL.style.width = '100%';
     v.lienzoGL.style.height = 'auto';
@@ -622,23 +637,42 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     deseo.set(
       b.x + limitar(tmp.x * anticipo, -7, 7) + (antes ? linea.sentido * 3 : 0),
       0.9 + Math.min(6, b.y * 0.32),
-      mezclar(b.z + limitar(tmp.z * anticipo, -4, 4), MEDIO, 0.35),
+      modo === 'repeticion' ? mezclar(b.z, MEDIO, 0.2) : mezclar(b.z + limitar(tmp.z * anticipo, -4, 4), MEDIO, 0.35) + 3.5,
     );
-    const k = 1 - Math.exp(-dt * (modo === 'repeticion' ? 4 : 2.6));
+    if (modo === 'repeticion') {
+      // La cámara del fondo no mira a sus pies: lo más cerca que apunta es a 34 yardas de ella.
+      deseo.x = camaraFondo < 50 ? Math.max(deseo.x, camaraFondo + 34) : Math.min(deseo.x, camaraFondo - 34);
+    } else if (modo === 'transmision' && esGolDeCampo) {
+      // Gol de campo: plano fijo desde atrás del pateador, con la línea y los postes a la vista.
+      deseo.set(mezclar(linea.scrimmage ?? linea.desde, posteX, 0.4), 1.5 + Math.min(2.5, b.y * 0.2), MEDIO);
+    }
+    const k = 1 - Math.exp(-dt * (modo === 'transmision' ? 2.6 : 4));
     mirada.lerp(deseo, k);
     let fovObjetivo;
     if (modo === 'repeticion') {
-      const atras = limitar((linea.scrimmage ?? linea.desde) - linea.sentido * 27, -27, 127);
-      v.camara.position.set(atras, 11.5, MEDIO + 2.5);
-      fovObjetivo = 27;
+      // Segundo ángulo: cámara alta detrás de la zona de anotación más cercana a la jugada, con teleobjetivo.
+      // El plano se cierra hasta abarcar unas 23 yardas de ancho a la altura del balón, esté lejos o cerca.
+      const lejos = Math.max(18, Math.abs(mirada.x - camaraFondo));
+      v.camara.position.set(camaraFondo, 8 + lejos * 0.14, MEDIO + 1.5);
+      fovObjetivo = limitar(grados(2 * Math.atan((23 / v.camara.aspect) / 2 / lejos)), 4, 34);
+    } else if (modo === 'transmision' && esGolDeCampo) {
+      v.camara.position.set((linea.scrimmage ?? linea.desde) - linea.sentido * 36, 11, MEDIO + 1.2);
+      fovObjetivo = 28;
+    } else if (modo === 'cancha') {
+      // Tercer ángulo: a ras de cancha, desde la banda cercana, como el camarógrafo de la línea lateral.
+      v.camara.position.set(mirada.x - linea.sentido * 5, 2.1, Math.min(ANCHO_CANCHA + 5, mirada.z + 17));
+      fovObjetivo = 30 / Math.min(1.5, Math.max(1, v.camara.aspect / 1.33));
     } else {
-      v.camara.position.set(limitar(50 + (mirada.x - 50) * 0.62, -2, 102), 31, ANCHO_CANCHA + 66);
-      const estrecho = limitar(1.55 / v.camara.aspect, 1, 1.3);
-      fovObjetivo = (antes ? 19.5 : 17.5) * estrecho;
-      if (b.enAire && b.y > 5) fovObjetivo *= 1.18; // las patadas altas necesitan más aire
-      for (const e of eventosDeZoom) if (t > e.t - 0.15 && t < e.t + 1.1) fovObjetivo *= 0.74;
+      // Cámara principal: en la tribuna lateral, a unos 27 m de alto y 70 m del centro de la cancha.
+      // El teleobjetivo se cierra en pantallas chicas para que un jugador mida unos 27 px de alto.
+      v.camara.position.set(limitar(50 + (mirada.x - 50) * 0.88, -6, 106), ALTO_CAMARA, ANCHO_CANCHA + FONDO_CAMARA);
+      const base = limitar(grados(2 * Math.atan((tamano.alto / 27) * 1.9 / 2 / LEJOS_CAMARA)), 11, 13.5);
+      fovObjetivo = base * (antes ? 1.1 : 1);
+      if (b.enAire && b.y > 5) fovObjetivo *= 1.25; // las patadas y los pases altos necesitan más aire
+      for (const e of eventosDeZoom) if (t > e.t - 0.15 && t < e.t + 1.1) fovObjetivo *= 0.8;
     }
-    fov += (fovObjetivo - fov) * (1 - Math.exp(-dt * 2.4));
+    fov = fovFijo ? fovObjetivo : fov + (fovObjetivo - fov) * (1 - Math.exp(-dt * 2.4));
+    fovFijo = false;
     v.camara.fov = fov;
     v.camara.lookAt(mirada);
     v.camara.updateProjectionMatrix();
@@ -708,6 +742,9 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
       }
       v.confeti.instanceMatrix.needsUpdate = true;
     } else v.confeti.visible = false;
+    // En la repetición la cámara está detrás de un poste: ese poste no se dibuja para que no tape la jugada.
+    v.postes[0].visible = !(modo === 'repeticion' && camaraFondo < 50);
+    v.postes[1].visible = !(modo === 'repeticion' && camaraFondo > 50);
     moverCamara(m, dt);
     return m;
   };
@@ -756,9 +793,10 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const saltarA = (hasta) => {
     const fin = limitar(hasta, 0, linea.duracion);
     for (const j of v.jugadores) j.rumbo = null;
-    t = 0; fov = modo === 'repeticion' ? 27 : 24;
+    t = 0;
     mirada.set(linea.desde, 1, MEDIO);
     anteriorBalon.set(linea.desde, 0, MEDIO);
+    fovFijo = true;
     ponerEscena(1 / 30);
     while (t < fin) { t = Math.min(fin, t + 1 / 30); ponerEscena(1 / 30); }
     v.render.render(v.escena, v.camara);
@@ -767,16 +805,20 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     contenedor.dataset.cuadros = String(cuadros);
   };
 
+  const ponerSello = () => {
+    sello.hidden = modo === 'transmision';
+    sello.textContent = modo === 'cancha' ? 'A ras de cancha · cámara lenta' : 'Repetición · cámara lenta';
+    contenedor.dataset.camara = modo;
+  };
+
   const reproducir = (nuevoModo = 'transmision') => {
     cancelAnimationFrame(cuadro);
     clearTimeout(respaldo);
     modo = nuevoModo;
-    velocidad = modo === 'repeticion' ? 0.42 : 1;
+    velocidad = modo === 'transmision' ? 1 : 0.45;
     cartel.hidden = true;
-    sello.hidden = modo !== 'repeticion';
-    sello.textContent = 'Repetición · cámara lenta';
+    ponerSello();
     contenedor.dataset.estado = 'animando';
-    contenedor.dataset.camara = modo;
     activo = true;
     tamano = medir();
     saltarA(0);
@@ -788,6 +830,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
 
   bRepetir.addEventListener('click', () => reproducir('transmision'));
   bRepeticion.addEventListener('click', () => reproducir('repeticion'));
+  bCancha.addEventListener('click', () => reproducir('cancha'));
 
   // Pausa cuando no se ve: pestaña oculta o la vista fuera de la pantalla.
   const alCambiarVisibilidad = () => {
@@ -823,16 +866,22 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   contenedor.dataset.jugadores = String(v.jugadores.length);
 
   if (typeof opciones.congelarEn === 'number') {
-    modo = opciones.camara === 'repeticion' ? 'repeticion' : 'transmision';
-    sello.hidden = modo !== 'repeticion';
-    sello.textContent = 'Repetición · cámara lenta';
-    contenedor.dataset.camara = modo;
+    modo = ['repeticion', 'cancha'].includes(opciones.camara) ? opciones.camara : 'transmision';
+    ponerSello();
     saltarA(opciones.congelarEn);
     if (opciones.congelarEn >= linea.duracion) terminar(); else contenedor.dataset.estado = 'congelada';
   } else {
     reproducir('transmision');
   }
-  return { reproducir, cerrar: () => { if (v.sesion === sesion) soltar(); }, contenedor };
+  // irA: deja la jugada congelada en un segundo y con una cámara (revisión y capturas).
+  const irA = (segundo, camara = 'transmision') => {
+    cancelAnimationFrame(cuadro); clearTimeout(respaldo); cuadro = 0;
+    modo = ['repeticion', 'cancha'].includes(camara) ? camara : 'transmision';
+    ponerSello();
+    saltarA(segundo);
+    contenedor.dataset.estado = 'congelada';
+  };
+  return { reproducir, irA, cerrar: () => { if (v.sesion === sesion) soltar(); }, contenedor };
 }
 
 // Cierra la vista 3D que esté abierta (si hay alguna).

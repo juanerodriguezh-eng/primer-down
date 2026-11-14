@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Hoja de contactos de la vista 3D</title>
+  <link rel="stylesheet" href="../css/estilos.css">
+  <style>
+    body { margin: 0; padding: 6px; background: #222; color: #fff; font: 12px system-ui, sans-serif; }
+    #hoja { display: flex; flex-wrap: wrap; gap: 6px; }
+    figure { margin: 0; } figcaption { padding: 1px 0; }
+    #vista { position: absolute; left: -9999px; top: 0; }
+  </style>
+</head>
+<body>
+  <!-- Herramienta de revisión: dibuja varios instantes de una jugada guardada, uno al lado del otro, para mirar poses y cámara.
+       Uso: /herramientas/hoja3d.html?id=401873052&jugada=60&t=0.5,1.5,2.5,3.5&camara=transmision&ancho=328&cols=3 -->
+  <div id="hoja"></div>
+  <div id="vista"></div>
+  <script type="module">
+    import { construirPartido } from '../js/modelo.js';
+    import { lineaDeTiempo } from '../js/jugada3d.js';
+    import { mostrarJugada3D } from '../js/vista3d.js';
+    const q = new URLSearchParams(location.search);
+    const ancho = Number(q.get('ancho')) || 328;
+    const vista = document.getElementById('vista');
+    vista.style.width = `${ancho}px`;
+    const hoja = document.getElementById('hoja');
+    try {
+      const summary = await (await fetch(`../datos/partidos/${(q.get('id') || '401873052').replace(/\D/g, '')}.json`)).json();
+      const p = construirPartido(summary);
+      const jugadas = p.drives.flatMap((d) => d.jugadas);
+      const ctx = {
+        local: { ...p.ctx.local, color: p.local.color, colorAlterno: p.local.colorAlterno },
+        visitante: { ...p.ctx.visitante, color: p.visitante.color, colorAlterno: p.visitante.colorAlterno },
+        dorsales: p.dorsales || null,
+      };
+      const linea = lineaDeTiempo(jugadas[(Number(q.get('jugada')) || 60) - 1], ctx);
+      const tiempos = (q.get('t') || '0.5,1.5,2.5,3.5').split(',').map((x) => (x === 'fin' ? linea.duracion : Number(x)));
+      const camaras = (q.get('camara') || 'transmision').split(',');
+      const control = await mostrarJugada3D(vista, linea, { congelarEn: 0 });
+      const lienzo = vista.querySelector('canvas');
+      for (const camara of camaras) for (const t of tiempos) {
+        control.irA(t, camara);
+        const copia = document.createElement('canvas');
+        copia.width = lienzo.width; copia.height = lienzo.height;
+        copia.style.width = `${ancho * (Number(q.get('zoom')) || 1)}px`;
+        copia.getContext('2d').drawImage(lienzo, 0, 0);
+        const fig = document.createElement('figure');
+        const pie = document.createElement('figcaption');
+        pie.textContent = `${camara} · t=${t.toFixed(1)} de ${linea.duracion.toFixed(1)} · ${linea.forma}`;
+        fig.append(copia, pie);
+        hoja.append(fig);
+      }
+      document.body.dataset.listo = '1';
+    } catch (e) {
+      hoja.textContent = `Error: ${e.message}`;
+      console.error(e);
+    }
+  </script>
+</body>
+</html>
