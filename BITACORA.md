@@ -502,3 +502,10 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 3. **`git push`** para publicar (lo publicado sigue siendo el encargo 2).
 4. **Domingo 15, partido en vivo de verdad:** sigue pendiente desde el encargo 2 (sondeo, `drives.current`, `winprobability` y `boxscore.players` en vivo).
 5. Sin cambios desde el encargo 2: lector de pantalla real y orden de tabulación.
+
+### Turno 9 (sáb 14, 13:40) — comprobación del cierre, sin cambios de código
+- Encontré el encargo 3 cerrado y el árbol de git limpio (6 confirmaciones sin publicar). No había trabajo sin anotar.
+- **Volví a verificar todo antes de darlo por bueno:** `npm test` → `tests 154 · pass 154 · fail 0`; `node --check` de los 22 archivos de `js/` sin errores; `node herramientas/verificar-sitio.mjs --capturas` → `Resultado: 0 falla(s), 5 aviso(s)` (los 5 de siempre, por ESPN).
+- Miré a ojo `docs/encargo-3-despues.png`, `vista-3d-repeticion.png` y `vista-3d-calidad-alta.png`: marcador de esquina, "3.ª y gol", línea azul bajo los jugadores, rótulos con dorsal y cartel de touchdown se ven bien a 360 px. No encontré defectos nuevos.
+- **No toqué código:** lo que queda pendiente (movimiento y fps en un celular real, partido en vivo del domingo, `git push`) no lo puedo hacer ni comprobar yo. 
+- **Aviso para el dueño:** los turnos programados ("PrimerDown-Fable-Noche" y "PrimerDown-Fable-Dia") van a seguir gastando cupo de Fable sin nada que hacer. Conviene desactivarlos hasta que haya un encargo nuevo.
