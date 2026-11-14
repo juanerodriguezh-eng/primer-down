@@ -409,3 +409,31 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Leer el texto encontró lo que ni pruebas ni capturas ven:** el resumen pasaba todas las pruebas y aun así sonaba a máquina y decía una cosa falsa ("ida y vuelta" en una paliza).
 - **Mi punto débil repetido:** cuatro veces un script de edición pasado por el shell se comió las barras invertidas de una expresión regular. Las cuatro las delató una comprobación (`node --check`, cobertura en 0, una prueba), nunca mi lectura.
 - **Proceso:** tres turnos se cortaron con trabajo sin anotar (`js/vista3d.js` completo, la prueba de contraste). Cada turno siguiente empezó verificando antes de tocar, y eso alcanzó para retomar sin perder nada.
+
+---
+
+# Encargo 3 (`ENCARGO-3.md`): realismo y cierre
+
+**Estado rápido (sáb 14, 07:00):** recién empezado. Orden: 1) gráficos de TV · 2) luz y materiales · 3) cuerpos · 4) cámara · 5) texto del fumble · 6) `PROMPTS-FABLE.md`.
+
+### Turno 7 (sáb 14, 06:58) — arranque
+- La sección "Encargo 3" no existía. Estado base verificado: árbol de git limpio (solo `ENCARGO-3.md` sin seguir), `npm test` → `tests 139 · pass 139 · fail 0`.
+- Empiezo por el punto 1 (gráficos de transmisión en la vista 3D).
+
+### Turno 8 (sáb 14, 08:35) — estado en que encontré todo
+- El turno 7 se cortó a las 07:06 (límite de 5 horas) con el punto 1 escrito y **sin anotar ni confirmar**: `js/graficatv.js` (puro), `pruebas/graficatv.test.mjs` (5 pruebas), cambios en `js/vista3d.js`, `js/partido.js`, `css/estilos.css` y el verificador, y 4 archivos temporales en `herramientas/` (`_c1`, `_c2`, `_c3`, `_ed`; los borré).
+- **Verificado antes de seguir:** `npm test` → 144 de 144. El verificador **no arrancaba**: otra vez un script de edición mío se había comido las barras invertidas de tres expresiones regulares (quinta vez). Corregido con edición directa.
+- Con el verificador andando aparecieron 4 fallas reales en la página nueva `vista-3d-repeticion`, corregidas:
+  1. La cortina "REPETICIÓN" quedaba visible aunque tuviera `hidden` (mi CSS le ponía `display: flex`) y desbordaba la página a 360 px.
+  2. Si el navegador no avisa del fin de la animación, la cortina no se retiraba: ahora hay un temporizador de respaldo.
+  3. La repetición en cámara lenta dura más que los 12 s que espera el verificador: esa página ahora espera 25 s.
+  4. A 360 px el sello "Repetición · cámara lenta" tapaba el marcador de TV: ahora va a la derecha en dos renglones.
+
+### Punto 1, gráficos de transmisión — HECHO Y VERIFICADO (sáb 14, 08:50)
+- **Marcador de esquina** (`js/graficatv.js` + `js/vista3d.js`): abreviaturas con el color de cada equipo, puntos de **antes** de la jugada (ESPN entrega los de después), punto que marca quién ataca, cuarto, reloj y la oportunidad ("1.ª y 10", "3.ª y gol"). Si la jugada anota, al terminar el número sube y se resalta. El texto alternativo del lienzo dice lo mismo en palabras.
+- **"3.ª y 7" sobre el pasto:** flecha del color del equipo que ataca, pintada en la cancha detrás de la línea, que se desvanece al arrancar la jugada (solo cámara de TV).
+- **Líneas azul y amarilla pintadas sobre el pasto y debajo de los jugadores:** reciben sombra, dejan ver el moteado del césped y nunca tapan a nadie.
+- **Cortina "REPETICIÓN"** al pasar a la repetición o a ras de cancha; con "reducir movimiento" no aparece.
+- **Verificación:** `npm test` → `tests 144 · pass 144 · fail 0` (barrido: 2.982 jugadas con gráfico de TV; el marcador nunca baja). `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` (25 páginas). Capturas miradas a ojo: `vista-3d.png` y `vista-3d-repeticion.png`. Capturas de "antes" guardadas: `antes-hoja-60.png`, `antes-hoja-87.png`, `antes-pagina-87.png`.
+- **No comprobado:** la cortina en movimiento (solo vi el antes y el después).
+- **Sigue:** 2) luz y materiales.

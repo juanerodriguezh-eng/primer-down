@@ -343,7 +343,44 @@ a { color: var(--enlace); }
   display: inline-block; min-height: 2.4rem; margin-top: 0.4rem; padding: 0.3rem 0; border: 0; background: none;
   color: var(--enlace); font: inherit; font-size: 0.88rem; text-decoration: underline; cursor: pointer;
 }
-@media (prefers-reduced-motion: reduce) { .vista3d-cartel-anotacion { animation: none; } }
+/* Gráficos de transmisión sobre la vista 3D: marcador de esquina y cortina de repetición */
+.tv-marcador {
+  position: absolute; top: 0.4rem; left: 0.4rem; display: flex; flex-direction: column; align-items: flex-start;
+  pointer-events: none; font-size: 0.72rem; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+.tv-fila { display: flex; align-items: stretch; border-radius: 5px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4); background: #0b0f1a; }
+.tv-equipo {
+  display: flex; align-items: center; gap: 0.3rem; padding: 0.22rem 0.36rem 0.22rem 0.5rem; position: relative;
+  background: var(--tv-color); color: var(--tv-texto); font-weight: 800; border-right: 1px solid rgba(255, 255, 255, 0.4);
+}
+.tv-equipo.tv-ataca::before { content: ""; position: absolute; left: 0.14rem; top: 50%; width: 0.22rem; height: 0.22rem; margin-top: -0.11rem; border-radius: 50%; background: currentColor; }
+.tv-abrev { letter-spacing: 0.02em; }
+.tv-puntos { min-width: 1.15rem; padding: 0.12rem 0.2rem; border-radius: 3px; background: rgba(0, 0, 0, 0.45); color: #fff; text-align: center; font-variant-numeric: tabular-nums; }
+.tv-equipo.tv-anota .tv-puntos { background: #ffd43b; color: #1a1500; animation: tv-anota 0.6s ease-out; }
+.tv-tiempo { display: flex; align-items: center; padding: 0 0.4rem; color: #f2f4f8; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tv-oportunidad {
+  margin-left: 0.5rem; padding: 0.16rem 0.45rem 0.2rem; border-radius: 0 0 5px 5px; background: #ffd43b; color: #1a1500;
+  font-weight: 800; white-space: nowrap;
+}
+@keyframes tv-anota { from { transform: scale(1.7); } to { transform: scale(1); } }
+.tv-marcador[hidden], .tv-cortina[hidden] { display: none; }
+.vista3d[data-camara="repeticion"] .vista3d-sello, .vista3d[data-camara="cancha"] .vista3d-sello { left: auto; right: 0.4rem; max-width: 6.6rem; text-align: right; line-height: 1.2; padding: 0.18rem 0.45rem; }
+.tv-cortina {
+  position: absolute; inset: -2% -40%; display: flex; align-items: center; justify-content: center; pointer-events: none;
+  background: linear-gradient(100deg, transparent 0 8%, #ffd43b 8% 11%, #0b1326 11% 89%, #ffd43b 89% 92%, transparent 92%);
+  transform: translateX(-110%) skewX(-12deg);
+}
+.tv-cortina span { color: #fff; font-weight: 900; font-size: clamp(1.4rem, 8vw, 2.6rem); font-style: italic; letter-spacing: 0.08em; text-transform: uppercase; transform: skewX(12deg); text-shadow: 0 2px 0 #ffd43b33; }
+.tv-cortina-pasa { animation: tv-cortina 0.85s cubic-bezier(0.5, 0, 0.5, 1) forwards; }
+@keyframes tv-cortina {
+  0% { transform: translateX(-110%) skewX(-12deg); }
+  36%, 52% { transform: translateX(0) skewX(-12deg); }
+  100% { transform: translateX(110%) skewX(-12deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vista3d-cartel-anotacion, .tv-equipo.tv-anota .tv-puntos { animation: none; }
+  .tv-cortina { display: none; }
+}
 .pizarra-camino { stroke: #fff; stroke-width: 0.9; stroke-linecap: round; }
 .pizarra-pase, .pizarra-pase-incompleto { stroke: #9fd0ff; }
 .pizarra-carrera, .pizarra-movimiento { stroke: #ffc27d; }

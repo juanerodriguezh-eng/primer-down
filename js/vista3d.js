@@ -21,6 +21,9 @@ const cargarThree = () => {
   return cargaDeThree;
 };
 
+// "Reducir movimiento" del sistema: sin temblor de cámara, sin estela, sin cortina animada.
+const sinMovimiento = () => { try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
 // ¿Se puede mostrar la vista 3D en este dispositivo? Si no, quien llama muestra la pizarra 2D.
 export function puedeUsar3D() {
   try {
@@ -165,6 +168,50 @@ function texturaDeBalon() {
   for (let i = 0; i < 5; i++) g.fillRect(54, 23 + i * 4.3, 11, 1.6);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// Línea de transmisión (azul o amarilla): pintura sobre el pasto, con bordes suaves y el moteado del césped.
+function texturaDeLineaTV() {
+  const c = lienzo(32, 256);
+  const g = c.getContext('2d');
+  const borde = g.createLinearGradient(0, 0, 32, 0);
+  borde.addColorStop(0, 'rgba(255,255,255,0)'); borde.addColorStop(0.22, 'rgba(255,255,255,1)');
+  borde.addColorStop(0.78, 'rgba(255,255,255,1)'); borde.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = borde; g.fillRect(0, 0, 32, 256);
+  let semilla = 31;
+  const azar = () => { semilla = (semilla * 16807) % 2147483647; return semilla / 2147483647; };
+  g.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${0.1 + azar() * 0.28})`; g.fillRect(azar() * 32, azar() * 256, 1 + azar() * 2, 1 + azar() * 4); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, 6);
+  return t;
+}
+
+// Cartel de la oportunidad ("3.ª y 7") pintado sobre el pasto como en la tele: una flecha con el color del
+// equipo que ataca, que apunta hacia donde ataca.
+function texturaDeOportunidad(texto, color, sentido) {
+  const W = 512; const H = 224;
+  const c = lienzo(W, H);
+  const g = c.getContext('2d');
+  const punta = 86;
+  g.beginPath();
+  if (sentido > 0) { g.moveTo(6, 6); g.lineTo(W - punta, 6); g.lineTo(W - 6, H / 2); g.lineTo(W - punta, H - 6); g.lineTo(6, H - 6); }
+  else { g.moveTo(W - 6, 6); g.lineTo(punta, 6); g.lineTo(6, H / 2); g.lineTo(punta, H - 6); g.lineTo(W - 6, H - 6); }
+  g.closePath();
+  const claro = luminancia(color) > 0.62;
+  g.fillStyle = color || '#24324f';
+  g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
+  g.lineWidth = 10; g.strokeStyle = claro ? '#10151f' : '#ffffff'; g.stroke();
+  g.fillStyle = claro ? '#10151f' : '#ffffff';
+  g.font = '800 128px system-ui, "Segoe UI", Arial, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(texto, W / 2 - sentido * punta * 0.32, H / 2 + 8, W - punta - 60);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
   return t;
 }
 
@@ -446,14 +493,24 @@ function construirVista() {
   escena.add(cancha);
 
   // Líneas de transmisión: azul donde empieza la jugada, amarilla la que hay que alcanzar.
-  const lineaTV = (color) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.42, ANCHO_CANCHA - 1.4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.y = 0.025; m.position.z = MEDIO; m.visible = false;
+  // Como en la tele, van pintadas sobre el pasto y debajo de los jugadores: reciben su sombra, dejan ver
+  // el moteado del césped y nunca tapan a nadie.
+  const pinturaTV = texturaDeLineaTV();
+  const lineaTV = (color, y) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.62, ANCHO_CANCHA - 1.4), new THREE.MeshLambertMaterial({
+      color, map: pinturaTV, emissive: color, emissiveIntensity: 0.22, transparent: true, opacity: 0.86, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    }));
+    m.rotation.x = -Math.PI / 2; m.position.y = y; m.position.z = MEDIO; m.visible = false; m.receiveShadow = true; m.renderOrder = 1;
     escena.add(m);
     return m;
   };
-  const lineaGolpeo = lineaTV('#3f8cff');
-  const lineaMarca = lineaTV('#ffd43b');
+  const lineaGolpeo = lineaTV('#2f7dff', 0.02);
+  const lineaMarca = lineaTV('#ffd21f', 0.022);
+  // Cartel de la oportunidad sobre el pasto (la textura se pinta para cada jugada).
+  const cartelPasto = new THREE.Mesh(new THREE.PlaneGeometry(11, 4.8), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  cartelPasto.rotation.x = -Math.PI / 2; cartelPasto.position.y = 0.024; cartelPasto.visible = false; cartelPasto.renderOrder = 2;
+  escena.add(cartelPasto);
 
   // Balón.
   const balon = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), new THREE.MeshLambertMaterial({ map: texturaDeBalon() }));
@@ -478,7 +535,7 @@ function construirVista() {
   escena.add(grupoJugadores);
 
   vista = {
-    lienzoGL, render, escena, camara, foco, cancha, postes, lineaGolpeo, lineaMarca, ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
+    lienzoGL, render, escena, camara, foco, cancha, postes, lineaGolpeo, lineaMarca, cartelPasto, texturaCartel: null, claveCartel: '', ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
     chica, jugadores: [], uniformes: new Map(), texturaCancha: null, claveCancha: '', sesion: null,
   };
   return vista;
@@ -515,8 +572,60 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const sello = document.createElement('p');
   sello.className = 'vista3d-sello';
   sello.hidden = true;
-  marco.append(v.lienzoGL, capa, sello, cartel);
-  v.lienzoGL.setAttribute('aria-label', `${linea.descripcion} ${linea.aviso}`);
+  // Gráficos de transmisión: marcador de esquina (equipos, puntos, cuarto, reloj y oportunidad) y cortina de repetición.
+  const tv = opciones.tv || null;
+  const marcadorTV = document.createElement('div');
+  marcadorTV.className = 'tv-marcador';
+  marcadorTV.setAttribute('aria-hidden', 'true');
+  marcadorTV.hidden = !tv;
+  const puntosTV = {};
+  if (tv) {
+    const fila = document.createElement('div');
+    fila.className = 'tv-fila';
+    for (const lado of ['visitante', 'local']) {
+      const e = tv[lado];
+      const caja = document.createElement('span');
+      caja.className = `tv-equipo${e.ataca ? ' tv-ataca' : ''}`;
+      caja.style.setProperty('--tv-color', e.color || '#24324f');
+      caja.style.setProperty('--tv-texto', luminancia(e.color || '#24324f') > 0.62 ? '#10151f' : '#ffffff');
+      const abrev = document.createElement('span'); abrev.className = 'tv-abrev'; abrev.textContent = e.abrev;
+      const puntos = document.createElement('span'); puntos.className = 'tv-puntos'; puntos.textContent = String(e.puntos);
+      caja.append(abrev, puntos);
+      fila.append(caja);
+      puntosTV[lado] = puntos;
+    }
+    const tiempo = document.createElement('span');
+    tiempo.className = 'tv-tiempo';
+    tiempo.textContent = [tv.periodo, tv.reloj].filter(Boolean).join(' ');
+    if (tiempo.textContent) fila.append(tiempo);
+    marcadorTV.append(fila);
+    if (tv.oportunidad) {
+      const op = document.createElement('span');
+      op.className = 'tv-oportunidad';
+      op.textContent = tv.oportunidad;
+      marcadorTV.append(op);
+    }
+  }
+  // El marcador muestra los puntos de antes de la jugada y, si alguien anota, los de después cuando termina.
+  const ponerPuntosTV = (alFinal) => {
+    if (!tv) return;
+    for (const lado of ['visitante', 'local']) {
+      const valor = String(alFinal ? tv[lado].puntosDespues : tv[lado].puntos);
+      const sube = alFinal && tv[lado].puntosDespues !== tv[lado].puntos;
+      puntosTV[lado].parentElement.classList.toggle('tv-anota', sube);
+      if (puntosTV[lado].textContent !== valor) puntosTV[lado].textContent = valor;
+    }
+    contenedor.dataset.marcador = `${puntosTV.visitante.textContent}-${puntosTV.local.textContent}`;
+  };
+  const cortina = document.createElement('div');
+  cortina.className = 'tv-cortina';
+  cortina.setAttribute('aria-hidden', 'true');
+  cortina.hidden = true;
+  const textoCortina = document.createElement('span');
+  textoCortina.textContent = 'Repetición';
+  cortina.append(textoCortina);
+  marco.append(v.lienzoGL, capa, marcadorTV, sello, cartel, cortina);
+  v.lienzoGL.setAttribute('aria-label', `${linea.descripcion}${tv ? ` ${tv.descripcion}` : ''} ${linea.aviso}`);
   const texto = document.createElement('p');
   texto.className = 'pizarra-texto';
   texto.textContent = linea.descripcion;
@@ -563,6 +672,21 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   if (linea.marca !== null) v.lineaMarca.position.x = linea.marca;
   v.bandera.visible = false;
   v.confeti.visible = false;
+  // "3.ª y 7" sobre el pasto, detrás de la línea de golpeo y del lado de la cámara. Solo en jugadas con oportunidad.
+  const conCartelPasto = !!tv?.oportunidad && linea.scrimmage !== null && linea.tSnap !== null && linea.forma !== 'gol-de-campo';
+  v.cartelPasto.visible = false;
+  if (conCartelPasto) {
+    const clave = `${tv.oportunidad}|${linea.ataque.color}|${linea.sentido}`;
+    if (v.claveCartel !== clave) {
+      v.texturaCartel?.dispose();
+      v.texturaCartel = texturaDeOportunidad(tv.oportunidad, linea.ataque.color || '#24324f', linea.sentido);
+      v.cartelPasto.material.map = v.texturaCartel;
+      v.cartelPasto.material.needsUpdate = true;
+      v.claveCartel = clave;
+    }
+    v.cartelPasto.position.x = limitar(linea.scrimmage - linea.sentido * 7.2, -3.5, 103.5);
+    v.cartelPasto.position.z = ANCHO_CANCHA - 15.8; // entre las marcas interiores y los números de la banda cercana
+  }
 
   // Rótulos de los protagonistas (pasador, receptor, corredor...) sobre la imagen.
   const rotulos = linea.rotulos.map((r) => {
@@ -750,6 +874,12 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
       }
       v.confeti.instanceMatrix.needsUpdate = true;
     } else v.confeti.visible = false;
+    // Cartel de la oportunidad: visible antes del centro, se desvanece cuando arranca la jugada. Solo con la cámara de TV.
+    if (conCartelPasto) {
+      const opacidad = modo === 'transmision' ? limitar(1 - (t - linea.tSnap) / 0.6, 0, 1) : 0;
+      v.cartelPasto.visible = opacidad > 0.01;
+      v.cartelPasto.material.opacity = opacidad;
+    }
     // En la repetición la cámara está detrás de un poste: ese poste no se dibuja para que no tape la jugada.
     v.postes[0].visible = !(modo === 'repeticion' && camaraFondo < 50);
     v.postes[1].visible = !(modo === 'repeticion' && camaraFondo > 50);
@@ -794,6 +924,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     cartel.textContent = c;
     cartel.hidden = !c;
     cartel.classList.toggle('vista3d-cartel-anotacion', tTouchdown !== null);
+    ponerPuntosTV(t >= linea.duracion - 0.01);
     contenedor.dataset.estado = 'fin';
   };
 
@@ -812,6 +943,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const saltarA = (hasta) => {
     const fin = limitar(hasta, 0, linea.duracion);
     for (const j of v.jugadores) j.rumbo = null;
+    ponerPuntosTV(false);
     t = 0;
     mirada.set(linea.desde, 1, MEDIO);
     anteriorBalon.set(linea.desde, 0, MEDIO);
@@ -832,9 +964,31 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     contenedor.dataset.camara = modo;
   };
 
-  const reproducir = (nuevoModo = 'transmision') => {
+  // Cortina de "REPETICIÓN": cruza la imagen y, cuando la tapa, cambia el ángulo y arranca la cámara lenta.
+  let esperaCortina = 0;
+  const pasarCortina = (alTapar) => {
+    clearTimeout(esperaCortina);
+    cortina.hidden = false;
+    cortina.classList.remove('tv-cortina-pasa');
+    void cortina.offsetWidth; // reinicia la animación
+    cortina.classList.add('tv-cortina-pasa');
+    contenedor.dataset.cortina = 'vista';
+    esperaCortina = setTimeout(alTapar, 330);
+    clearTimeout(finCortina);
+    finCortina = setTimeout(() => { cortina.hidden = true; }, 1000); // por si el navegador no avisa del fin de la animación
+  };
+  let finCortina = 0;
+  cortina.addEventListener('animationend', () => { cortina.hidden = true; });
+
+  const reproducir = (nuevoModo = 'transmision', conCortina = nuevoModo !== 'transmision') => {
     cancelAnimationFrame(cuadro);
     clearTimeout(respaldo);
+    clearTimeout(esperaCortina);
+    if (conCortina && !sinMovimiento()) {
+      contenedor.dataset.estado = 'animando';
+      pasarCortina(() => reproducir(nuevoModo, false));
+      return;
+    }
     modo = nuevoModo;
     velocidad = modo === 'transmision' ? 1 : 0.45;
     tFin = linea.duracion;
@@ -913,6 +1067,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
       activo = false;
       cancelAnimationFrame(cuadro);
       clearTimeout(respaldo);
+      clearTimeout(esperaCortina);
       observador?.disconnect();
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
       window.removeEventListener('resize', alRedimensionar);
@@ -930,7 +1085,8 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     saltarA(opciones.congelarEn);
     if (opciones.congelarEn >= linea.duracion) terminar(); else contenedor.dataset.estado = 'congelada';
   } else {
-    reproducir('transmision');
+    // opciones.camara sin congelar: la jugada arranca directo en ese ángulo, con su cortina (enlaces y verificación).
+    reproducir(['repeticion', 'cancha'].includes(opciones.camara) ? opciones.camara : 'transmision');
   }
   // irA: deja la jugada congelada en un segundo y con una cámara (revisión y capturas).
   const irA = (segundo, camara = 'transmision') => {
