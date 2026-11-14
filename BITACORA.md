@@ -391,7 +391,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Lector de pantalla y orden de tabulación:** revisé atributos, no los probé con un lector.
 
 ### 3. Próximos pasos recomendados
-1. Revisar y hacer `git push` de `primer-down/` (13 confirmaciones nuevas desde la v1).
+1. Revisar y hacer `git push` de `primer-down/` (13 confirmaciones sin publicar: `git status` dice `ahead 13`).
 2. Abrir en el celular `partido.html?id=401873052&modo=repeticion&jugada=87` y tocar "Ver la jugada en 3D"; después `pizarra.html` y "Ver con jugadores en 3D".
 3. El domingo, abrir un partido en vivo y comparar con la demostración `partido.html?id=401873052&fuente=simulado&desde=150&paso=3&cada=2`.
 
