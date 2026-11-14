@@ -3,6 +3,7 @@
 // Three.js se carga de forma diferida la primera vez que se abre una vista 3D.
 // Unidades: yardas. X = yardLine (0 a 100, zonas hasta -10 y 110), Z = ancho (0 a 53,33), Y = altura.
 import { muestrear, ANCHO_CANCHA } from './jugada3d.js';
+import { crearMedidorDeCalidad, NIVELES, nivelPorNombre } from './calidad.js';
 
 const MEDIO = ANCHO_CANCHA / 2;
 const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -15,10 +16,40 @@ const LEJOS_CAMARA = Math.hypot(ALTO_CAMARA, FONDO_CAMARA + ANCHO_CANCHA / 2);
 const suave = (u) => { const x = limitar(u, 0, 1); return x * x * (3 - 2 * x); };
 
 let THREE = null;
+let EXTRA = null; // addons de Three.js (entorno, bloom, grano, estela); si no cargan, la vista funciona sin ellos
 let cargaDeThree = null;
 const cargarThree = () => {
-  if (!cargaDeThree) cargaDeThree = import('./vendor/three.module.min.js').then((m) => { THREE = m; return m; });
+  if (!cargaDeThree) {
+    cargaDeThree = import('./vendor/three.module.min.js').then(async (m) => {
+      THREE = m;
+      try {
+        const partes = await Promise.all([
+          import('./vendor/RoomEnvironment.js'), import('./vendor/EffectComposer.js'), import('./vendor/RenderPass.js'), import('./vendor/ShaderPass.js'),
+          import('./vendor/UnrealBloomPass.js'), import('./vendor/OutputPass.js'), import('./vendor/AfterimagePass.js'),
+        ]);
+        EXTRA = Object.assign({}, ...partes);
+      } catch { EXTRA = null; }
+      return m;
+    });
+  }
   return cargaDeThree;
+};
+
+// Grano fino de cámara y un leve oscurecimiento en las esquinas (último paso de la imagen, solo en calidad alta).
+const SOMBREADOR_DE_GRANO = {
+  uniforms: { tDiffuse: { value: null }, tiempo: { value: 0 }, fuerza: { value: 0.03 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: [
+    'uniform sampler2D tDiffuse; uniform float tiempo; uniform float fuerza; varying vec2 vUv;',
+    'float azar(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }',
+    'void main() {',
+    '  vec4 c = texture2D(tDiffuse, vUv);',
+    '  float n = azar(vUv * vec2(913.0, 677.0) + fract(tiempo) * 7.0) - 0.5;',
+    '  vec2 d = vUv - 0.5;',
+    '  c.rgb = (c.rgb + n * fuerza) * (1.0 - dot(d, d) * 0.42);',
+    '  gl_FragColor = c;',
+    '}',
+  ].join('\n'),
 };
 
 // "Reducir movimiento" del sistema: sin temblor de cámara, sin estela, sin cortina animada.
@@ -171,6 +202,24 @@ function texturaDeBalon() {
   return t;
 }
 
+// Panel de focos de estadio: filas de lámparas redondas sobre un bastidor oscuro.
+function texturaDeFocos() {
+  const c = lienzo(256, 96);
+  const g = c.getContext('2d');
+  g.fillStyle = '#05070c'; g.fillRect(0, 0, 256, 96);
+  for (let fila = 0; fila < 3; fila++) {
+    for (let i = 0; i < 9; i++) {
+      const x = 16 + i * 28; const y = 17 + fila * 31;
+      const brillo = g.createRadialGradient(x, y, 1, x, y, 12);
+      brillo.addColorStop(0, '#ffffff'); brillo.addColorStop(0.55, '#fff6da'); brillo.addColorStop(1, 'rgba(255,240,200,0)');
+      g.fillStyle = brillo; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 // Línea de transmisión (azul o amarilla): pintura sobre el pasto, con bordes suaves y el moteado del césped.
 function texturaDeLineaTV() {
   const c = lienzo(32, 256);
@@ -250,17 +299,18 @@ function uniforme(equipo) {
   const alterno = equipo.colorAlterno || '#d9d9d9';
   const camiseta = equipo.esLocal ? color : '#f1f2f4';
   const numero = equipo.esLocal ? (luminancia(color) > 0.6 ? '#10151f' : '#ffffff') : (luminancia(color) > 0.75 ? '#10151f' : color);
-  const mat = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, ...extra });
+  const mat = (c, extra = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0, envMapIntensity: 0.5, ...extra });
   return {
     numero,
     camiseta: mat(camiseta),
     pantalon: mat(equipo.esLocal ? '#e6e7ea' : color),
     calceta: mat(equipo.esLocal ? color : '#f1f2f4'),
-    casco: new THREE.MeshPhongMaterial({ color: equipo.esLocal ? (luminancia(alterno) > 0.9 ? color : alterno) : color, shininess: 110, specular: 0xbbbbbb }),
+    // Casco: pintura brillante con barniz, que refleja las luces del estadio.
+    casco: new THREE.MeshPhysicalMaterial({ color: equipo.esLocal ? (luminancia(alterno) > 0.9 ? color : alterno) : color, roughness: 0.2, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.5 }),
     franja: mat(equipo.esLocal ? color : alterno),
-    barra: mat('#5b6270'),
+    barra: mat('#8b93a3', { roughness: 0.35, metalness: 0.85, envMapIntensity: 1.2 }),
     guante: mat('#f4f4f4'),
-    zapato: mat('#16181d'),
+    zapato: mat('#16181d', { roughness: 0.45 }),
     pieles: PIEL.map((p) => mat(p)),
   };
 }
@@ -432,14 +482,29 @@ function construirVista() {
   render.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   render.shadowMap.enabled = true;
   render.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Respuesta de cámara de cine (ACES): las luces fuertes se queman con suavidad, como en una transmisión.
+  render.toneMapping = THREE.ACESFilmicToneMapping;
+  render.toneMappingExposure = 0.92;
   const escena = new THREE.Scene();
   escena.background = new THREE.Color('#0d1424');
   escena.fog = new THREE.Fog('#0d1424', 190, 420);
   const camara = new THREE.PerspectiveCamera(22, 16 / 10, 1, 600);
 
   // Luces de estadio: una principal con sombras suaves y luz de ambiente del cielo y del pasto.
-  escena.add(new THREE.HemisphereLight('#dbe6ff', '#2c5a34', 1.55));
-  const foco = new THREE.DirectionalLight('#fff4e0', 2.5);
+  // El entorno (una sala con paneles de luz, filtrada con PMREM) da la luz de relleno y los reflejos de los cascos.
+  let entorno = null;
+  if (EXTRA?.RoomEnvironment) {
+    try {
+      const pmrem = new THREE.PMREMGenerator(render);
+      entorno = pmrem.fromScene(new EXTRA.RoomEnvironment(), 0.04).texture;
+      escena.environment = entorno;
+      escena.environmentIntensity = 0.4;
+      pmrem.dispose();
+    } catch { entorno = null; }
+  }
+  escena.add(new THREE.HemisphereLight('#dbe6ff', '#2c5a34', entorno ? 0.85 : 1.4));
+  const foco = new THREE.DirectionalLight('#fff1d6', 2.7);
+  foco.shadow.radius = 3.5;
   foco.castShadow = true;
   foco.shadow.mapSize.set(chica ? 1024 : 2048, chica ? 1024 : 2048);
   Object.assign(foco.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 10, far: 200 });
@@ -451,7 +516,7 @@ function construirVista() {
   escena.add(relleno);
 
   // Alrededores: borde de la cancha y tribunas con gente (planos inclinados con puntos de colores).
-  const borde = new THREE.Mesh(new THREE.PlaneGeometry(190, 110), new THREE.MeshLambertMaterial({ color: '#1f5a2b' }));
+  const borde = new THREE.Mesh(new THREE.PlaneGeometry(190, 110), new THREE.MeshStandardMaterial({ color: '#1f5a2b', roughness: 1, envMapIntensity: 0.2 }));
   borde.rotation.x = -Math.PI / 2; borde.position.set(50, -0.03, MEDIO); borde.receiveShadow = true;
   escena.add(borde);
   const matTribuna = new THREE.MeshBasicMaterial({ map: texturaDeTribuna() });
@@ -468,8 +533,21 @@ function construirVista() {
   tribuna(120, -48, MEDIO, Math.PI / 2); // detrás de la zona del local
   tribuna(120, 148, MEDIO, -Math.PI / 2); // detrás de la zona del visitante
 
+  // Torres de focos sobre las tribunas: paneles de lámparas muy brillantes (en calidad alta, el bloom las hace resplandecer).
+  const matFocos = new THREE.MeshBasicMaterial({ map: texturaDeFocos(), color: new THREE.Color(7, 6.6, 5.6), fog: false });
+  const matTorre = new THREE.MeshBasicMaterial({ color: '#0a0f1a', fog: false });
+  const torre = (x, z, giroY) => {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(17, 6.5), matFocos);
+    panel.position.set(x, 47, z); panel.rotation.order = 'YXZ'; panel.rotation.y = giroY; panel.rotation.x = 0.25;
+    const palo = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 16), matTorre);
+    palo.position.set(x, 36, z); palo.rotation.y = giroY;
+    escena.add(panel, palo);
+  };
+  for (const x of [-12, 29, 71, 112]) torre(x, -58, 0);
+  for (const z of [MEDIO - 26, MEDIO + 26]) { torre(-70, z, Math.PI / 2); torre(170, z, -Math.PI / 2); }
+
   // Postes amarillos al fondo de cada zona de anotación.
-  const matPoste = new THREE.MeshLambertMaterial({ color: '#ffd23f' });
+  const matPoste = new THREE.MeshStandardMaterial({ color: '#ffd23f', roughness: 0.4, metalness: 0.3 });
   const postes = [];
   for (const [px, signo] of [[-10, 1], [110, -1]]) {
     const grupoPoste = new THREE.Group();
@@ -488,7 +566,7 @@ function construirVista() {
   }
 
   // Cancha (la textura se pinta con los colores de los equipos del partido).
-  const cancha = new THREE.Mesh(new THREE.PlaneGeometry(120, ANCHO_CANCHA), new THREE.MeshLambertMaterial({ color: '#ffffff' }));
+  const cancha = new THREE.Mesh(new THREE.PlaneGeometry(120, ANCHO_CANCHA), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.96, metalness: 0, envMapIntensity: 0.22 }));
   cancha.rotation.x = -Math.PI / 2; cancha.position.set(50, 0, MEDIO); cancha.receiveShadow = true;
   escena.add(cancha);
 
@@ -513,7 +591,7 @@ function construirVista() {
   escena.add(cartelPasto);
 
   // Balón.
-  const balon = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), new THREE.MeshLambertMaterial({ map: texturaDeBalon() }));
+  const balon = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), new THREE.MeshStandardMaterial({ map: texturaDeBalon(), roughness: 0.6, envMapIntensity: 0.6 }));
   balon.scale.set(1.5, 2.5, 1.5); // alargado sobre su eje Y; se orienta al dibujar. Va un 50 % más grande que el real para que se vea en el celular.
   balon.castShadow = true;
   const ejeBalon = new THREE.Group();
@@ -534,11 +612,68 @@ function construirVista() {
   const grupoJugadores = new THREE.Group();
   escena.add(grupoJugadores);
 
+  // Calidad: empieza en alta (o en la que ya se midió en esta visita) y baja sola si la imagen se traba.
+  let guardada = null;
+  try { guardada = nivelPorNombre(sessionStorage.getItem('primer-down-calidad-3d')); } catch { /* sin almacenamiento */ }
+  const medidor = crearMedidorDeCalidad({ nivel: guardada ?? 2 });
+
   vista = {
+    medidor, calidad: -1, compositor: null, grano: null, estela: null, bloom: null,
     lienzoGL, render, escena, camara, foco, cancha, postes, lineaGolpeo, lineaMarca, cartelPasto, texturaCartel: null, claveCartel: '', ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
     chica, jugadores: [], uniformes: new Map(), texturaCancha: null, claveCancha: '', sesion: null,
   };
   return vista;
+}
+
+// Cadena de efectos de la calidad alta: escena -> bloom de los focos -> estela -> ACES -> grano. Se arma la primera vez que hace falta.
+function armarCompositor(v) {
+  if (v.compositor || !EXTRA?.EffectComposer) return v.compositor;
+  try {
+    const destino = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+    const c = new EXTRA.EffectComposer(v.render, destino);
+    c.addPass(new EXTRA.RenderPass(v.escena, v.camara));
+    v.bloom = new EXTRA.UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.5, 1.7);
+    c.addPass(v.bloom);
+    v.estela = new EXTRA.AfterimagePass(0);
+    v.estela.enabled = false;
+    c.addPass(v.estela);
+    c.addPass(new EXTRA.OutputPass());
+    v.grano = new EXTRA.ShaderPass(SOMBREADOR_DE_GRANO);
+    c.addPass(v.grano);
+    v.compositor = c;
+  } catch { v.compositor = null; }
+  return v.compositor;
+}
+
+// Aplica un nivel de calidad (0 baja, 1 media, 2 alta). Devuelve el nivel que quedó de verdad.
+function aplicarCalidad(v, nivel) {
+  let n = limitar(Math.round(nivel), 0, 2);
+  if (n === 2 && !armarCompositor(v)) n = 1; // sin addons no hay calidad alta
+  if (v.calidad === n) return n;
+  v.calidad = n;
+  const tipo = n === 2 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  const conSombras = n >= 1;
+  if (v.render.shadowMap.type !== tipo || v.foco.castShadow !== conSombras) {
+    v.render.shadowMap.type = tipo;
+    v.foco.castShadow = conSombras;
+    v.foco.shadow.map?.dispose();
+    v.foco.shadow.map = null;
+    v.render.shadowMap.needsUpdate = true;
+    v.escena.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+  }
+  const dpr = Math.min(window.devicePixelRatio || 1, n === 2 ? 2 : n === 1 ? 1.5 : 1);
+  v.render.setPixelRatio(dpr);
+  v.compositor?.setPixelRatio(dpr);
+  try { sessionStorage.setItem('primer-down-calidad-3d', NIVELES[n]); } catch { /* sin almacenamiento */ }
+  return n;
+}
+
+// Dibuja un cuadro con los efectos del nivel de calidad actual.
+function pintarCuadro(v, segundos = 0) {
+  if (v.calidad === 2 && v.compositor) {
+    v.grano.uniforms.tiempo.value = segundos;
+    v.compositor.render();
+  } else v.render.render(v.escena, v.camara);
 }
 
 // Deja la vista sin sesión activa (se llama al abrir otra jugada o al cerrar).
@@ -730,11 +865,16 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     const ancho = Math.max(200, Math.round(marco.clientWidth || contenedor.clientWidth || 328));
     const alto = Math.round(ancho * (ancho < 520 ? 0.75 : 0.56));
     v.render.setSize(ancho, alto, false);
+    v.compositor?.setSize(ancho, alto);
     v.lienzoGL.style.width = '100%';
     v.lienzoGL.style.height = 'auto';
     v.camara.aspect = ancho / alto;
     return { ancho, alto };
   };
+  // Calidad de esta jugada: la que pida quien llama (enlaces y capturas) o la automática.
+  const calidadPedida = nivelPorNombre(opciones.calidad);
+  const ponerCalidad = (n) => { contenedor.dataset.calidad = NIVELES[aplicarCalidad(v, n)]; };
+  ponerCalidad(calidadPedida ?? v.medidor.nivel);
   let tamano = medir();
 
   const textoCartel = () => {
@@ -908,7 +1048,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
 
   const dibujar = (dt) => {
     ponerEscena(dt);
-    v.render.render(v.escena, v.camara);
+    pintarCuadro(v, t);
     ponerRotulos();
     cuadros++;
     contenedor.dataset.cuadros = String(cuadros);
@@ -932,6 +1072,11 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     cuadro = 0;
     if (!activo) return;
     const dt = Math.min(0.05, Math.max(0.001, (ahora - ultimo) / 1000));
+    // Calidad automática: si la imagen va a menos de unos 40 cuadros por segundo, se apagan efectos.
+    if (calidadPedida === null) {
+      const nueva = v.medidor.cuadro(ahora - ultimo);
+      if (nueva !== null) { ponerCalidad(nueva); tamano = medir(); }
+    }
     ultimo = ahora;
     t = Math.min(tFin, t + dt * velocidad);
     dibujar(dt * velocidad);
@@ -950,7 +1095,8 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     fovFijo = true;
     ponerEscena(1 / 30);
     while (t < fin) { t = Math.min(fin, t + 1 / 30); ponerEscena(1 / 30); }
-    v.render.render(v.escena, v.camara);
+    v.medidor.pausa();
+    pintarCuadro(v, t);
     ponerRotulos();
     cuadros++;
     contenedor.dataset.cuadros = String(cuadros);
@@ -1057,7 +1203,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     : null;
   observador?.observe(marco);
   document.addEventListener('visibilitychange', alCambiarVisibilidad);
-  const alRedimensionar = () => { tamano = medir(); if (contenedor.dataset.estado === 'fin') { v.camara.updateProjectionMatrix(); v.render.render(v.escena, v.camara); ponerRotulos(); } };
+  const alRedimensionar = () => { tamano = medir(); if (contenedor.dataset.estado === 'fin') { v.camara.updateProjectionMatrix(); pintarCuadro(v, t); ponerRotulos(); } };
   window.addEventListener('resize', alRedimensionar);
   const alPerderContexto = (ev) => { ev.preventDefault(); sesion.detener(); contenedor.dataset.estado = 'error'; opciones.alFallar?.(); };
   v.lienzoGL.addEventListener('webglcontextlost', alPerderContexto);

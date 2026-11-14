@@ -286,7 +286,7 @@ function pintar(p, { animar = true } = {}) {
     const boton = zonas.feed.querySelector('.boton-pizarra');
     if (boton) {
       const en3D = abrirAlCargar === '3d';
-      const opciones = !en3D ? {} : parametros.has('t3d') ? { congelarEn: Number(parametros.get('t3d')) || 0, camara: parametros.get('camara') || '' } : { camara: parametros.get('camara') || '' };
+      const opciones = !en3D ? {} : { camara: parametros.get('camara') || '', calidad: parametros.get('calidad') || '', ...(parametros.has('t3d') ? { congelarEn: Number(parametros.get('t3d')) || 0 } : {}) };
       abrirAlCargar = '';
       boton.dispatchEvent(new CustomEvent('click', { detail: { en3D, opciones } }));
     }

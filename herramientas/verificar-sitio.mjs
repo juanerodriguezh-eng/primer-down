@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/vendor/three.module.min.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/AfterimagePass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/vendor/AfterimageShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -65,6 +65,7 @@ const PAGINAS = [
     ['marcador de TV con equipos, puntos de antes de la jugada, cuarto y reloj', /class="tv-abrev">WSH<\/span><span class="tv-puntos">3</.test(dom) && /class="tv-abrev">NYG<\/span><span class="tv-puntos">0</.test(dom) && /class="tv-tiempo">2\.º 7:43</.test(dom)],
     ['oportunidad de la jugada en el marcador ("1.ª y 10") y equipo que ataca marcado', /class="tv-oportunidad">1\.ª y 10</.test(dom) && /class="tv-equipo tv-ataca"[^>]*><span class="tv-abrev">NYG</.test(dom)],
     ['el texto alternativo del lienzo dice el marcador y la oportunidad', /<canvas class="vista3d-lienzo"[^>]*aria-label="[^"]*Marcador: Commanders 3, Giants 0\. Segundo cuarto, 7:43\. Primera y 10\./.test(dom)],
+    ['la vista dice con qué calidad está dibujando (alta, media o baja)', /<div class="vista3d"[^>]*data-calidad="(alta|media|baja)"/.test(dom)],
     ['botones "Ver de nuevo", "Repetición" y "Ver la pizarra 2D"', dom.includes('>Ver de nuevo<') && dom.includes('>Repetición<') && dom.includes('>Ver la pizarra 2D<')],
   ] },
   { nombre: 'vista-3d-repeticion', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&camara=repeticion', gl: true, tiempo: 25000, revisar: (dom) => [
@@ -72,6 +73,12 @@ const PAGINAS = [
     ['la cortina dice "Repetición" y no queda tapando la imagen', /<div class="tv-cortina[^"]*"[^>]*hidden=""[^>]*><span>Repetición</.test(dom)],
     ['al terminar el touchdown el marcador de TV sube de 3 a 10', /<div class="vista3d"[^>]*data-marcador="10-7"/.test(dom) && /class="tv-equipo tv-ataca tv-anota"[^>]*><span class="tv-abrev">WSH<\/span><span class="tv-puntos">10</.test(dom)],
     ['sello de cámara lenta', /class="vista3d-sello">Repetición · cámara lenta</.test(dom)],
+  ] },
+  { nombre: 'vista-3d-calidad-alta', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8&camara=cancha&calidad=alta', gl: true, revisar: (dom) => [
+    ['con calidad alta pedida se dibuja con todos los efectos (entorno, bloom y grano cargan)', /<div class="vista3d"[^>]*data-calidad="alta"/.test(dom) && /<div class="vista3d"[^>]*data-estado="congelada"/.test(dom)],
+  ] },
+  { nombre: 'vista-3d-calidad-baja', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8&camara=cancha&calidad=baja', gl: true, revisar: (dom) => [
+    ['con calidad baja la vista también dibuja (sin sombras ni efectos)', /<div class="vista3d"[^>]*data-calidad="baja"/.test(dom) && /<div class="vista3d"[^>]*data-jugadores="22"/.test(dom)],
   ] },
   { nombre: 'vista-3d-sin-webgl', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=3d', sinGl: true, revisar: (dom) => [
     ['sin WebGL aparece la pizarra 2D con una nota', dom.includes('La vista 3D no está disponible en este dispositivo') && /<div class="pizarra" data-forma="carrera">/.test(dom)],

@@ -437,3 +437,14 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Verificación:** `npm test` → `tests 144 · pass 144 · fail 0` (barrido: 2.982 jugadas con gráfico de TV; el marcador nunca baja). `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` (25 páginas). Capturas miradas a ojo: `vista-3d.png` y `vista-3d-repeticion.png`. Capturas de "antes" guardadas: `antes-hoja-60.png`, `antes-hoja-87.png`, `antes-pagina-87.png`.
 - **No comprobado:** la cortina en movimiento (solo vi el antes y el después).
 - **Sigue:** 2) luz y materiales.
+
+### Punto 2, luz y materiales de estadio + calidad automática — HECHO Y VERIFICADO (sáb 14, 09:05)
+- **Addons de Three.js 0.170.0 bajados una sola vez de jsdelivr a `js/vendor/`** (13 archivos, 37 KB): `RoomEnvironment`, `EffectComposer`, `RenderPass`, `ShaderPass`, `MaskPass`, `Pass`, `UnrealBloomPass`, `OutputPass`, `AfterimagePass` y 4 sombreadores. Les cambié solo la línea de importación (`'three'` → `'./three.module.min.js'`) para que funcionen sin build. Si alguno no carga, la vista sigue sin efectos (calidad media).
+- **Luz:** entorno `RoomEnvironment` filtrado con PMREM (relleno y reflejos), tonemapping ACES, foco principal con sombras suaves, torres de focos sobre las tribunas.
+- **Materiales:** cascos con pintura brillante y barniz (`MeshPhysicalMaterial` con clearcoat) que reflejan el entorno; barras metálicas; uniformes, pasto y balón con `MeshStandardMaterial`.
+- **Calidad alta:** bloom leve (solo lo muy brillante: focos y destellos), grano fino de cámara y esquinas apenas oscurecidas.
+- **Calidad automática (nuevo `js/calidad.js`, puro, 7 pruebas):** mide los cuadros reales; si el promedio de 40 cuadros baja de 40 fps pasa a **media** (sin bloom, grano ni estela; sombras simples; menos píxeles) y, si sigue lento, a **baja** (sin sombras). Tarda menos de 2 s en reaccionar, nunca vuelve a subir a media jugada, ignora las pausas y recuerda el nivel durante la visita. `?calidad=alta|media|baja` lo fija (capturas y pruebas).
+- **Verificación:** `npm test` → `tests 151 · pass 151 · fail 0`. `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` (27 páginas; nuevas `vista-3d-calidad-alta` y `vista-3d-calidad-baja`). Comparé a ojo `antes-hoja-87.png` con `hoja-87-luz.png`.
+- **Me corregí 2 veces:** la primera versión salió lavada y sobreexpuesta (el bloom alcanzaba a toda la cancha): bajé luces y exposición y subí el umbral del bloom; y una prueba mía de la calidad mezclaba cuadros lentos y rápidos en la misma ventana.
+- **No comprobado:** los fps reales en un celular. El navegador sin ventana dibuja por software, así que ahí la calidad automática siempre baja; eso prueba el mecanismo, no el rendimiento.
+- **Sigue:** 3) cuerpos de atleta y movimientos.

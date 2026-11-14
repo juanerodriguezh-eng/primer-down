@@ -38,7 +38,7 @@
       const linea = lineaDeTiempo(jugadas[(Number(q.get('jugada')) || 60) - 1], ctx);
       const tiempos = (q.get('t') || '0.5,1.5,2.5,3.5').split(',').map((x) => (x === 'fin' ? linea.duracion : Number(x)));
       const camaras = (q.get('camara') || 'transmision').split(',');
-      const control = await mostrarJugada3D(vista, linea, { congelarEn: 0 });
+      const control = await mostrarJugada3D(vista, linea, { congelarEn: 0, calidad: q.get('calidad') || 'alta' });
       const lienzo = vista.querySelector('canvas');
       for (const camara of camaras) for (const t of tiempos) {
         control.irA(t, camara);
