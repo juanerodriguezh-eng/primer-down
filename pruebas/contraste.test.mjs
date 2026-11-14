@@ -32,6 +32,14 @@ const mezcla = (a, b, p) => {
   return `#${[16, 8, 0].map((d) => c(d).toString(16).padStart(2, '0')).join('')}`;
 };
 
+// Color de trazo (stroke) de una regla del CSS, para revisar lo que se dibuja sobre el pasto.
+const color = (clase) => {
+  const inicio = css.indexOf(`.${clase} {`);
+  const m = inicio < 0 ? null : /stroke: (#[0-9a-f]{6})/i.exec(css.slice(inicio, css.indexOf('}', inicio)));
+  assert.ok(m, `no encontré el trazo de .${clase}`);
+  return m[1].toLowerCase();
+};
+
 const oscura = paleta(':root');
 const clara = { ...oscura, ...paleta(':root[data-tema="claro"]') };
 
@@ -85,6 +93,11 @@ test('colores fijos de la cancha, la pizarra y la vista 3D (iguales en los dos t
     ['cartel de touchdown', '#1a1500', '#ffd43b', 4.5],
     ['fichas O de la pizarra', '#0b1220', '#f4f7ff', 4.5],
     ['fichas X sobre el pasto oscuro', '#ffb3b3', oscura.pasto, 3],
+    ['fichas X sobre el pasto claro', '#ffb3b3', clara.pasto, 3],
+    ...[['línea de inicio', color('cancha-golpeo')], ['línea a conseguir', color('cancha-marca')], ['trazo de pase', color('pizarra-pase, .pizarra-pase-incompleto')],
+      ['trazo de carrera', color('pizarra-carrera, .pizarra-movimiento')], ['trazo de patada', color('pizarra-patada, .pizarra-gol-de-campo')],
+      ['cruz de pase incompleto', color('pizarra-cruz')], ['rutas de la defensa', color('ruta-x')]]
+      .flatMap(([que, c]) => [[`${que} sobre el pasto oscuro`, c, oscura.pasto, 3], [`${que} sobre el pasto claro`, c, clara.pasto, 3]]),
   ];
   const malos = pares.map(([que, a, b, min]) => [que, contraste(a, b), min]).filter(([, c, min]) => c < min);
   assert.deepEqual(malos.map(([que, c]) => `${que}: ${c.toFixed(2)}`), []);

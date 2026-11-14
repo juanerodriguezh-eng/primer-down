@@ -6,7 +6,7 @@
   <title>Primer Down: la NFL explicada en español mientras la ves</title>
   <meta name="description" content="Sigue un partido de la NFL en vivo y entiende cada jugada: qué pasó y por qué, en español simple.">
   <meta name="theme-color" content="#0b1220">
-  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <script>try { var t = new URLSearchParams(location.search).get('tema') || localStorage.getItem('tema'); if (t === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
   <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body class="pagina-portada">

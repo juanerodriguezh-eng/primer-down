@@ -138,6 +138,16 @@ const PAGINAS = [
     ['el marcador marca el cambio', /id="marcador"[^>]*data-cambio="1"/.test(dom) && dom.includes('class="puntos puntos-cambio"')],
     ['muestra cuántos puntos sumó', /class="puntos-suma"[^>]*>\+7</.test(dom)],
   ] },
+  // Modo claro: se puede pedir por la dirección (?tema=claro) y pinta lo mismo.
+  { nombre: 'modo-claro-partido', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=72&pizarra=abierta&tema=claro', revisar: (dom) => [
+    ['la página está en modo claro', /<html[^>]*data-tema="claro"/.test(dom)],
+    ['el botón ofrece volver al oscuro', /data-tema-boton[^>]*aria-label="Cambiar a modo oscuro"/.test(dom) || /aria-label="Cambiar a modo oscuro"[^>]*data-tema-boton/.test(dom)],
+    ['72 jugadas y la pizarra abierta', contar(dom, /<article class="jugada /g) === 72 && /class="cancha pizarra-cancha"[^>]*data-estado="fin"/.test(dom)],
+  ] },
+  { nombre: 'modo-claro-pizarra', ruta: '/pizarra.html?tema=claro', revisar: (dom) => [
+    ['la página está en modo claro', /<html[^>]*data-tema="claro"/.test(dom)],
+    ['5 jugadas clásicas', contar(dom, /<section class="clasica"/g) === 5],
+  ] },
   { nombre: 'partido-sin-id', ruta: '/partido.html', revisar: (dom) => [
     ['mensaje claro', dom.includes('Falta indicar qué partido quieres ver')],
   ] },
@@ -145,6 +155,21 @@ const PAGINAS = [
     ['mensaje claro', dom.includes('No encontramos este partido entre los guardados')],
   ] },
 ];
+
+// Accesibilidad básica, en todas las páginas: idioma, textos alternativos y nombre en cada control.
+function accesibilidad(dom) {
+  const sinTexto = (html) => html.replace(/<[^>]*>/g, '').trim() === '';
+  const graficos = [...dom.matchAll(/<(svg|canvas)\b[^>]*>/g)].map((m) => m[0]);
+  const botones = [...dom.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)];
+  const campos = [...dom.matchAll(/<(input|select)\b[^>]*>/g)].map((m) => m[0]);
+  return [
+    ['la página declara el idioma español', /<html[^>]*lang="es"/.test(dom)],
+    [`canchas y lienzos con texto alternativo (${graficos.length})`, graficos.every((g) => /aria-hidden="true"/.test(g) || (/role="img"/.test(g) && /aria-label="[^"]{20,}"/.test(g)))],
+    [`todos los botones tienen nombre (${botones.length})`, botones.every((b) => !sinTexto(b[2]) || /aria-label="[^"]+"/.test(b[1]))],
+    [`todos los campos tienen nombre (${campos.length})`, campos.every((x) => /aria-label="[^"]+"/.test(x))],
+    ['las imágenes tienen texto alternativo', [...dom.matchAll(/<img\b[^>]*>/g)].every((m) => /alt="/.test(m[0]))],
+  ];
+}
 
 let fallas = 0; let avisos = 0;
 const ok = (t) => console.log(`  ok    ${t}`);
@@ -182,7 +207,7 @@ try {
       if (propios.length) propios.slice(0, 5).forEach((l) => mal(`error de consola: ${l.slice(l.indexOf('CONSOLE')).slice(0, 300)}`));
       else ok('sin errores de consola propios');
       if (deRed.length) ojo(`la red hacia ESPN falló (${deRed.length} mensaje/s); lo que depende de ESPN no se pudo comprobar`);
-      for (const [nombre, pasa, dependeDeRed] of pagina.revisar(dom)) {
+      for (const [nombre, pasa, dependeDeRed] of [...pagina.revisar(dom), ...accesibilidad(dom)]) {
         if (pasa) ok(nombre);
         else if (dependeDeRed && (deRed.length || !/data-(listo|semana)="1"/.test(dom))) ojo(`${nombre}: no comprobado (sin respuesta de ESPN)`);
         else mal(nombre);

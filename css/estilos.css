@@ -47,7 +47,7 @@
     --pausa: #5b667c;
     --vivo: #c62828;
     --vivo-texto: #ffffff;
-    --pasto: #2e8b57;
+    --pasto: #236f44;
     --sombra: 0 4px 14px rgba(20, 30, 60, 0.08);
 }
 
@@ -217,14 +217,15 @@ a { color: var(--enlace); }
 .cancha-numero { fill: rgba(255, 255, 255, 0.75); font-size: 3px; text-anchor: middle; font-weight: 700; }
 .cancha-tramo { fill: rgba(255, 212, 59, 0.22); }
 .cancha-marca { stroke: #ffd43b; stroke-width: 0.8; }
-.cancha-golpeo { stroke: #6db3ff; stroke-width: 0.8; }
+.cancha-golpeo { stroke: #9fd0ff; stroke-width: 0.8; }
 .cancha-flecha { stroke: #fff; stroke-width: 0.9; }
 .cancha-flecha-punta { fill: #fff; }
 .cancha-balon { fill: #b5651d; stroke: #fff; stroke-width: 0.5; }
 
 .cancha-leyenda { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; margin-top: 0.4rem; color: var(--texto-suave); font-size: 0.82rem; }
-.leyenda::before { content: ""; display: inline-block; width: 0.9rem; height: 0.2rem; margin-right: 0.35rem; vertical-align: middle; border-radius: 2px; }
-.leyenda-golpeo::before { background: #6db3ff; }
+.leyenda::before { content: ""; display: inline-block; width: 0.9rem; height: 0.2rem; margin: 0 0.55rem 0 3px; vertical-align: middle; border-radius: 2px; box-shadow: 0 0 0 3px var(--pasto); }
+.leyenda-ficha::before { box-shadow: none; margin-left: 0; }
+.leyenda-golpeo::before { background: #9fd0ff; }
 .leyenda-marca::before { background: #ffd43b; }
 
 /* ---------- Resumen final ---------- */
@@ -349,7 +350,7 @@ a { color: var(--enlace); }
 .pizarra-penal { stroke: #ffd43b; }
 .pizarra-origen { fill: none; stroke: #fff; stroke-width: 0.5; }
 .pizarra-llegada { fill: none; stroke: #fff; stroke-width: 0.5; stroke-dasharray: 1.2 1; }
-.pizarra-cruz { stroke: #ff7a7a; stroke-width: 1; stroke-linecap: round; }
+.pizarra-cruz { stroke: #ffb3b3; stroke-width: 1; stroke-linecap: round; }
 .pizarra-postes { stroke: #ffd43b; stroke-width: 1.2; stroke-linecap: round; }
 
 /* ---------- La Pizarra: jugadas clásicas ---------- */

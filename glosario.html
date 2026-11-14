@@ -6,7 +6,7 @@
   <title>Glosario de fútbol americano en español · Primer Down</title>
   <meta name="description" content="Los términos del fútbol americano explicados en español simple, cada uno con un ejemplo.">
   <meta name="theme-color" content="#0b1220">
-  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <script>try { var t = new URLSearchParams(location.search).get('tema') || localStorage.getItem('tema'); if (t === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
   <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body class="pagina-glosario">

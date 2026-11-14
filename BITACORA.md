@@ -334,3 +334,26 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Punto 3 del encargo: completo** (prioridades 1 a 5 y pasos a, b, c, d, e). **Sigue:** 4) README · 5) calidad a 360 px, claro y oscuro · 6) texto del resumen final.
 
 **Qué tomé del boceto de Opus (`referencias/boceto-jugadores.html`) y qué hice distinto:** del boceto tomé la idea general del encargo original (jugadores de pie sobre una cancha vista como en la tele, cámara que sigue al balón, sombra y espiral del balón, piernas en movimiento y cartel al final). Lo hice distinto en casi todo lo demás porque la actualización del dueño pidió 3D realista: en vez de un dibujo 2D con perspectiva simulada, hay una escena 3D real con Three.js (jugadores articulados con casco, hombreras y número; luz con sombras; tres cámaras), la parte pura está separada y probada (`js/jugada3d.js`, `js/clasica3d.js`), los dorsales son los reales de ESPN, y hay respaldo a la pizarra 2D. Aviso honesto: no volví a abrir el archivo del boceto en este turno; trabajé a partir de la descripción del encargo.
+
+### Punto 4, README — HECHO (sáb 14, 01:10)
+- `README.md` en español: qué es, el link, 3 capturas regeneradas en `docs/` (jugada en el celular con el dorsal real "82 B. Sinnott", cámara a ras de cancha, cámara de TV), cómo se construyó con Fable en turnos sin supervisión, cómo abrirlo y cómo correr las pruebas, y lo que falta comprobar.
+- Comprobé antes de escribirlo que `npm test` no depende de los datos que están fuera de git: las dos pruebas que usan `datos/corpus` y `datos/crudos` se saltan solas si no están. El README lo dice.
+- **Sigue:** 5) calidad a 360 px en claro y oscuro · 6) texto del resumen final.
+
+### Turno 6 (sáb 14, 03:30) — estado en que encontré todo
+- El turno 5 se cortó después del README con un archivo **sin anotar**: `pruebas/contraste.test.mjs` (contraste WCAG de las dos paletas, leyendo los colores de `css/estilos.css`). Al correr `npm test` fallaba en 3 pares: eran defectos reales del CSS, no de la prueba.
+
+### Punto 5, calidad a 360 px en claro y oscuro — HECHO Y VERIFICADO (sáb 14, 03:55)
+- **Contraste (prueba `pruebas/contraste.test.mjs`, 6 pruebas):** texto 4,5:1 y elementos gráficos 3:1 en las dos paletas. Corregido en `css/estilos.css`:
+  - Sello "En vivo" en modo oscuro: texto blanco sobre rojo daba 3,05:1; ahora texto oscuro (`--vivo-texto`).
+  - Amarillo de "penal" y "jugada clave" en modo claro: 4,48:1 y 4,47:1; oscurecido a `#7a5d00`.
+  - Pasto del modo claro: las X de la defensa daban 2,50:1 y los trazos de la pizarra menos de 3:1; pasto oscurecido a `#236f44`.
+  - Línea de inicio de la jugada (2,95:1) y cruz de pase incompleto (2,57:1) sobre el pasto: aclaradas. La prueba ahora lee del CSS los trazos que se dibujan sobre el pasto y los revisa en los dos temas.
+  - Las muestras de color de la leyenda (azul y amarillo) casi no se veían sobre fondo blanco: ahora llevan un borde del color del pasto.
+- **Modo claro revisado a ojo por primera vez** (capturas `claro-portada`, `claro-partido`, `claro-final`, `claro-pizarra`, `claro-glosario`, `claro-vivo`): se lee todo, nada se desborda. Para poder capturarlo agregué `?tema=claro` a las 4 páginas (también sirve para compartir un enlace en claro).
+- **Verificador (`herramientas/verificar-sitio.mjs`):** en **todas** las páginas revisa ahora idioma declarado, texto alternativo en canchas y lienzos (`role="img"` con descripción de 20 caracteres o más), nombre en cada botón (hasta 511 por página) y en cada campo, y `alt` en imágenes. Páginas nuevas: `modo-claro-partido` y `modo-claro-pizarra`.
+- **Foco visible:** contorno de 3 px con 3:1 o más sobre los tres fondos de cada tema (lo comprueba la prueba de contraste). No encontré controles sin foco.
+- **Verificación:** `npm test` → `tests 137 · pass 137 · fail 0`. `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` (los 5 de siempre, por ESPN).
+- **Me corregí:** dos veces más un script de edición mío se comió las barras invertidas de una expresión regular (una dejó caracteres de control dentro del verificador; lo delató `node --check`). Desde ahora edito expresiones regulares con la herramienta de edición directa, no con scripts pasados por el shell.
+- **No comprobado:** lector de pantalla real (solo revisé atributos) y el orden de tabulación a mano.
+- **Sigue:** 6) texto "Así se ganó el partido" con 3 partidos distintos.
