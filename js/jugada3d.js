@@ -145,11 +145,17 @@ export function lineaDeTiempo(jugada, ctx) {
   const evento = (t, tipo, extra = {}) => eventos.push({ t, tipo, ...extra });
   const dorsal = (lado, nombre) => {
     const mapa = ctx?.dorsales?.[String(ctx?.[lado]?.id ?? '')];
-    return (nombre && mapa && mapa[nombre] != null) ? String(mapa[nombre]) : null;
+    const clave = String(nombre ?? '').replace(/\s+/g, '').replace(/,?(Jr|Sr|II|III|IV|V)\.?$/i, ''); // igual que claveDorsal de modelo.js
+    return (clave && mapa && mapa[clave] != null) ? String(mapa[clave]) : (nombre && mapa && mapa[nombre] != null ? String(mapa[nombre]) : null);
   };
   // Marca a un jugador como protagonista. Su número solo se muestra si es el real; si no se conoce, va sin número.
   const nombrar = (j, crudo, papel) => {
     if (!j || !crudo) return j;
+    // Solo vale algo con forma de nombre de la liga ("J.Daniels", "Mi.Wilson", "M.Penix Jr."); si el texto vino
+    // mal recortado (pasa en algunos balones sueltos), se queda con el nombre del principio o sin rótulo.
+    const limpio = /^[A-Z][A-Za-z]{0,2}\.\s?(?:St\.\s?)?[A-Z][A-Za-z'’-]+(?: (?:Jr|Sr|II|III|IV)\.?)?/.exec(String(crudo).trim());
+    if (!limpio) return j;
+    crudo = limpio[0];
     j.nombre = nombreJugador(crudo) || crudo;
     j.papel = papel;
     j.numero = dorsal(j.bando === 'ataque' ? ataca : defiende, crudo) ?? '';

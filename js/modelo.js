@@ -138,6 +138,40 @@ function driveParcial(drive, jugadas, ctx) {
 
 // summary: respuesta de ESPN (o la copia aligerada de datos/partidos).
 // opciones.hasta: número de jugadas a mostrar (modo repetición). Sin él, se muestran todas.
+// Dorsales reales por equipo, con la misma forma en que el texto de la jugada nombra a cada jugador ("J.Daniels").
+// Salen del boxscore del summary (o de `summary.dorsales` en los partidos guardados). Si dos jugadores de un
+// equipo comparten inicial y apellido, ese nombre se queda sin dorsal: es preferible no mostrar número a mostrar uno equivocado.
+// "M.Penix Jr." y "M. Penix" son el mismo jugador: la clave va sin espacios ni sufijos (Jr., Sr., II, III...).
+export const claveDorsal = (nombre) => String(nombre ?? '').replace(/\s+/g, '').replace(/,?(Jr|Sr|II|III|IV|V)\.?$/i, '');
+
+export function dorsalesDe(summary) {
+  if (summary?.dorsales && typeof summary.dorsales === 'object') return summary.dorsales;
+  const salida = {};
+  for (const equipo of (Array.isArray(summary?.boxscore?.players) ? summary.boxscore.players : [])) {
+    const id = String(equipo?.team?.id ?? '');
+    if (!id) continue;
+    const mapa = {};
+    const dudosos = new Set();
+    for (const grupo of (Array.isArray(equipo.statistics) ? equipo.statistics : [])) {
+      for (const fila of (Array.isArray(grupo?.athletes) ? grupo.athletes : [])) {
+        const a = fila?.athlete || {};
+        const dorsal = String(a.jersey ?? '').trim();
+        const nombre = String(a.firstName || '').trim();
+        const apellido = String(a.lastName || '').trim();
+        if (!/^\d{1,2}$/.test(dorsal) || !nombre || !apellido) continue;
+        const clave = claveDorsal(`${nombre[0]}.${apellido}`);
+        if (mapa[clave] != null && mapa[clave] !== dorsal) dudosos.add(clave);
+        mapa[clave] = dorsal;
+        // Cuando hay dos con la misma inicial, el texto de la liga usa dos letras ("Mi.Wilson").
+        if (nombre.length > 1) mapa[claveDorsal(`${nombre.slice(0, 2)}.${apellido}`)] = dorsal;
+      }
+    }
+    for (const clave of dudosos) delete mapa[clave];
+    if (Object.keys(mapa).length) salida[id] = mapa;
+  }
+  return salida;
+}
+
 export function construirPartido(summary, opciones = {}) {
   const comp = summary?.header?.competitions?.[0] || {};
   const { local, visitante } = ladosDe(comp.competitors);
@@ -253,6 +287,7 @@ export function construirPartido(summary, opciones = {}) {
     local: { ...local, puntos: puntos.local, gano: estado === 'final' ? puntos.local > puntos.visitante : false },
     visitante: { ...visitante, puntos: puntos.visitante, gano: estado === 'final' ? puntos.visitante > puntos.local : false },
     ctx: ctxBase,
+    dorsales: dorsalesDe(summary),
     drives,
     totalJugadas: total,
     jugadasIncluidas: incluidas,

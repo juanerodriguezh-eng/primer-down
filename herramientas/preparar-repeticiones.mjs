@@ -6,6 +6,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ } from './cargar-datos.mjs';
 import { compactarJugada } from './ampliar-corpus.mjs';
+import { dorsalesDe } from '../js/modelo.js';
 
 const ORIGEN = path.join(RAIZ, 'datos', 'crudos');
 const DESTINO = path.join(RAIZ, 'datos', 'partidos');
@@ -42,6 +43,7 @@ export function aligerar(s) {
         plays: (d.plays ?? []).map(compactarJugada),
       })),
     },
+    dorsales: dorsalesDe(s), // { idEquipo: { 'J.Daniels': '5' } }: número real de camiseta para la recreación de la jugada
     winprobability: (s.winprobability ?? []).map((w) => ({ playId: w.playId, homeWinPercentage: w.homeWinPercentage })),
   };
 }
