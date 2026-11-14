@@ -278,7 +278,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
   3. Una jugada cuyo texto ESPN corrige después se vuelve a pintar en su lugar (por la firma del texto); no se duplica.
 - **Sigue: punto 3 (vista 3D con Three.js).**
 
-### Punto 3, vista 3D — parte pura LISTA Y PROBADA; todavía SIN render (vie 13, 21:15 aprox.)
+### Punto 3, vista 3D — parte pura LISTA Y PROBADA; todavía SIN render (vie 13, 21:02)
 - **Three.js descargado una sola vez:** `js/vendor/three.module.min.js` (r170, 692 KB, un solo archivo sin importaciones) y `js/vendor/LICENSE-three.txt` (MIT). Nadie lo carga todavía.
 - **Nuevo `js/jugada3d.js` (puro, sin DOM ni Three.js):** `lineaDeTiempo(jugada, ctx)` arma la recreación con 22 jugadores (formación según la jugada, recorridos con tiempos, gestos como lanzar, atrapar, taclear, caer, patear, bloquear, arrodillar y celebrar, tramos del balón y eventos) y `muestrear(linea, t)` dice dónde está cada jugador y el balón en el segundo t. El render 3D solo va a consumir eso.
   - Real (de ESPN): inicio y final de la jugada, quién ataca, tipo, nombres del texto, lado del pase o hueco de la carrera, escopeta, yardas de la patada, resultado. Ilustrado: posiciones y recorridos de cada jugador.
@@ -288,3 +288,13 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Verificación:** `npm test` → `tests 115 · pass 115 · fail 0`.
 - **Me corregí 6 veces, todas por el barrido:** el tacleador y el que intercepta se teletransportaban (19 yardas por segundo); el receptor de un pase de 52 yardas corría a 11,5 (ahora el pase sale cuando le da tiempo de llegar); un receptor salía del campo a 18,7; los touchbacks dejaban el balón en la zona de anotación y no en la yarda 35; la escapada del mariscal iba a 15,3; y **un dato malo de ESPN**: al cierre de un cuarto el final de la jugada llega en blanco (yarda 0, sin equipo) y una carrera "sin ganancia" cruzaba 99 yardas. Ese último también afectaba a la pizarra 2D de la v1: corregido en `trazoDeJugada` (`js/pizarra.js`), que ahora usa `statYardage` cuando el final viene en blanco.
 - **Falta del punto 3:** `js/vista3d.js` (cancha, cámara de transmisión, jugadores, balón, repetición), integrarlo en `partido.js` con respaldo a la pizarra 2D, capturas, dorsales reales, momentos (touchdown, bandera) y las jugadas clásicas.
+
+### Turno 5 (vie 13, 22:25) — estado en que encontré todo
+- El turno 4 se cortó hacia las 21:09 con trabajo **sin anotar ni confirmar**: `js/vista3d.js` (840 líneas: cancha, tribunas, postes, 22 jugadores articulados, balón, cámara de transmisión, repetición, bandera y confeti), cambios en `js/partido.js` (botón "Ver la jugada en 3D" con respaldo a la pizarra 2D) y `css/estilos.css`, y `herramientas/capturar.mjs`.
+- **Verificado antes de seguir (22:35):** `node --check` de todos los `js/` sin errores; `npm test` → 115 de 115; la captura `herramientas/capturas/3d-carrera.png` muestra que WebGL **sí dibuja** en Chrome sin ventana con `--use-angle=swiftshader`.
+- `node herramientas/verificar-sitio.mjs` daba 1 falla (buscaba el texto viejo "Ocultar la pizarra"). Corregido, y agregué dos páginas al verificador:
+  - `vista-3d` (con WebGL por software): 22 jugadores, lienzo con texto alternativo, rótulo "Skattebo", aviso "Recreación ilustrada…", botones "Ver de nuevo", "Repetición" y "Ver la pizarra 2D".
+  - `vista-3d-sin-webgl` (Chrome con `--disable-3d-apis`): aparece la pizarra 2D con la nota "La vista 3D no está disponible en este dispositivo" y no queda nada a medias.
+- Me corregí: al forzar el 3D por la dirección en un navegador sin WebGL, Three.js dejaba un error en la consola. Ahora `abrirVista` ni lo intenta si `puedeUsar3D()` dice que no.
+- **Resultado:** `node herramientas/verificar-sitio.mjs` → `0 falla(s), 5 aviso(s)` (los 5 de siempre, por ESPN).
+- **Problema visto en la captura (pendiente inmediato):** a 360 px los jugadores miden unos 10 px; la cámara está demasiado abierta. Sigo con el encuadre y con una hoja de contactos (varios instantes de una jugada en una sola captura) para revisar poses y cámara.

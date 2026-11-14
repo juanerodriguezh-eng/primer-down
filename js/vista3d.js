@@ -1,0 +1,839 @@
+// Vista 3D de una jugada: cancha, estadio, 22 jugadores articulados, balón y cámara de transmisión.
+// Solo dibuja: todo lo que pasa en la jugada viene de js/jugada3d.js (lineaDeTiempo y muestrear).
+// Three.js se carga de forma diferida la primera vez que se abre una vista 3D.
+// Unidades: yardas. X = yardLine (0 a 100, zonas hasta -10 y 110), Z = ancho (0 a 53,33), Y = altura.
+import { muestrear, ANCHO_CANCHA } from './jugada3d.js';
+
+const MEDIO = ANCHO_CANCHA / 2;
+const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
+const mezclar = (a, b, u) => a + (b - a) * u;
+const suave = (u) => { const x = limitar(u, 0, 1); return x * x * (3 - 2 * x); };
+
+let THREE = null;
+let cargaDeThree = null;
+const cargarThree = () => {
+  if (!cargaDeThree) cargaDeThree = import('./vendor/three.module.min.js').then((m) => { THREE = m; return m; });
+  return cargaDeThree;
+};
+
+// ¿Se puede mostrar la vista 3D en este dispositivo? Si no, quien llama muestra la pizarra 2D.
+export function puedeUsar3D() {
+  try {
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    if (typeof WebGLRenderingContext === 'undefined') return false;
+    const lienzo = document.createElement('canvas');
+    const gl = lienzo.getContext('webgl2') || lienzo.getContext('webgl');
+    if (!gl) return false;
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return true;
+  } catch { return false; }
+}
+
+// ---------------------------------------------------------------------------
+// Texturas dibujadas con código (sin imágenes)
+// ---------------------------------------------------------------------------
+
+function lienzo(ancho, alto) {
+  const c = document.createElement('canvas');
+  c.width = ancho; c.height = alto;
+  return c;
+}
+
+const luminancia = (hex) => {
+  const n = parseInt(String(hex || '#000').replace('#', ''), 16) || 0;
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+};
+
+// Cancha completa: pasto con franjas de corte, líneas, marcas, números y zonas de anotación con los colores de los equipos.
+function texturaDeCancha(local, visitante, chica) {
+  const W = chica ? 1536 : 2048;
+  const H = chica ? 682 : 910;
+  const c = lienzo(W, H);
+  const g = c.getContext('2d');
+  const px = W / 120; // píxeles por yarda a lo largo
+  const pz = H / ANCHO_CANCHA; // píxeles por yarda a lo ancho
+  const x = (yarda) => (yarda + 10) * px;
+  // Pasto: franjas de 5 yardas en dos tonos.
+  for (let y = -10; y < 110; y += 5) {
+    g.fillStyle = ((y + 10) / 5) % 2 === 0 ? '#2f7d3a' : '#286f33';
+    g.fillRect(x(y), 0, 5 * px + 1, H);
+  }
+  // Zonas de anotación con el color de cada equipo y su nombre.
+  const zona = (desde, equipo, giro) => {
+    g.fillStyle = equipo.color || '#24324f';
+    g.fillRect(x(desde), 0, 10 * px, H);
+    g.save();
+    g.translate(x(desde + 5), H / 2);
+    g.rotate(giro);
+    g.fillStyle = luminancia(equipo.color) > 0.62 ? '#10151f' : '#ffffff';
+    g.font = `800 ${Math.round(5.6 * px)}px system-ui, "Segoe UI", Arial, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    const texto = String(equipo.nombre || equipo.abrev || '').toUpperCase();
+    g.fillText(texto, 0, 0, H * 0.86);
+    g.restore();
+  };
+  zona(-10, local, -Math.PI / 2);
+  zona(100, visitante, Math.PI / 2);
+  // Textura del pasto: motas claras y oscuras.
+  let semilla = 7;
+  const azar = () => { semilla = (semilla * 16807) % 2147483647; return semilla / 2147483647; };
+  for (let i = 0; i < (chica ? 9000 : 16000); i++) {
+    g.fillStyle = azar() > 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.06)';
+    g.fillRect(azar() * W, azar() * H, 1 + azar() * 2, 1 + azar() * 3);
+  }
+  // Líneas: borde, cada 5 yardas, líneas de gol más gruesas.
+  g.fillStyle = '#f4f6f4';
+  const grosor = Math.max(2, 0.22 * px);
+  g.fillRect(0, 0, W, 0.7 * pz); g.fillRect(0, H - 0.7 * pz, W, 0.7 * pz);
+  g.fillRect(0, 0, 0.7 * px, H); g.fillRect(W - 0.7 * px, 0, 0.7 * px, H);
+  for (let y = 0; y <= 100; y += 5) {
+    const ancho = y === 0 || y === 100 ? grosor * 2.2 : grosor;
+    g.fillRect(x(y) - ancho / 2, 0, ancho, H);
+  }
+  // Marcas de cada yarda: junto a las bandas y en las dos filas interiores.
+  const filas = [1.2, 23.58, ANCHO_CANCHA - 23.58 - 0.7, ANCHO_CANCHA - 1.9];
+  for (let y = 1; y < 100; y++) {
+    if (y % 5 === 0) continue;
+    for (const f of filas) g.fillRect(x(y) - grosor * 0.35, f * pz, grosor * 0.7, 0.7 * pz);
+  }
+  // Números cada 10 yardas: los de la banda cercana se leen desde la cámara; los de la lejana, desde el otro lado.
+  g.font = `700 ${Math.round(3 * pz)}px system-ui, "Segoe UI", Arial, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let y = 10; y <= 90; y += 10) {
+    const texto = String(y <= 50 ? y : 100 - y).split('').join(' ');
+    g.save(); g.translate(x(y), (ANCHO_CANCHA - 10.5) * pz); g.fillText(texto, 0, 0); g.restore();
+    g.save(); g.translate(x(y), 10.5 * pz); g.rotate(Math.PI); g.fillText(texto, 0, 0); g.restore();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+// Tribuna: filas de gente como puntos de colores.
+function texturaDeTribuna() {
+  const c = lienzo(512, 128);
+  const g = c.getContext('2d');
+  g.fillStyle = '#10141f'; g.fillRect(0, 0, 512, 128);
+  let semilla = 99;
+  const azar = () => { semilla = (semilla * 16807) % 2147483647; return semilla / 2147483647; };
+  const tonos = ['#c9ced9', '#8d97ab', '#59647c', '#d7b98c', '#a56b5a', '#3d4b6b', '#e8e2d2', '#7a2d2d', '#2d4d7a'];
+  for (let fila = 0; fila < 21; fila++) {
+    for (let i = 0; i < 128; i++) {
+      if (azar() < 0.12) continue;
+      g.fillStyle = tonos[Math.floor(azar() * tonos.length)];
+      g.globalAlpha = 0.5 + azar() * 0.4;
+      g.fillRect(i * 4 + azar() * 1.5, fila * 6 + 2, 2.4, 3.4);
+    }
+  }
+  g.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
+  t.repeat.set(3, 1);
+  return t;
+}
+
+const texturasDeNumero = new Map();
+function texturaDeNumero(numero, color) {
+  const clave = `${numero}|${color}`;
+  if (texturasDeNumero.has(clave)) return texturasDeNumero.get(clave);
+  const c = lienzo(64, 64);
+  const g = c.getContext('2d');
+  g.fillStyle = color;
+  g.font = `800 ${String(numero).length > 1 ? 44 : 50}px system-ui, "Segoe UI", Arial, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(numero), 32, 35);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  texturasDeNumero.set(clave, t);
+  return t;
+}
+
+function texturaDeBalon() {
+  const c = lienzo(128, 64);
+  const g = c.getContext('2d');
+  g.fillStyle = '#7a4420'; g.fillRect(0, 0, 128, 64);
+  g.fillStyle = '#f2efe6';
+  g.fillRect(0, 9, 128, 4); g.fillRect(0, 51, 128, 4); // franjas blancas cerca de las puntas
+  g.fillRect(58, 22, 3, 20); // costura
+  for (let i = 0; i < 5; i++) g.fillRect(54, 23 + i * 4.3, 11, 1.6);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---------------------------------------------------------------------------
+// Jugador articulado. Mira hacia +X; +Z es su derecha. Medidas en yardas (mide unas 2,05: 1,88 m).
+// ---------------------------------------------------------------------------
+
+const ALTO_CADERA = 1.0;
+const PIEL = ['#c58c62', '#8d5a3b', '#e0b08a', '#6e4630', '#a8714c'];
+const DE_LINEA = new Set(['C', 'LG', 'RG', 'LT', 'RT', 'DE', 'DT']);
+let geo = null;
+
+function geometrias() {
+  if (geo) return geo;
+  geo = {
+    muslo: new THREE.CapsuleGeometry(0.088, 0.33, 3, 8),
+    pierna: new THREE.CapsuleGeometry(0.066, 0.34, 3, 8),
+    pie: new THREE.BoxGeometry(0.27, 0.085, 0.11),
+    torso: new THREE.CapsuleGeometry(0.19, 0.27, 4, 10),
+    cadera: new THREE.SphereGeometry(0.175, 10, 8),
+    hombreras: new THREE.SphereGeometry(0.2, 12, 8),
+    casco: new THREE.SphereGeometry(0.158, 14, 12),
+    cara: new THREE.SphereGeometry(0.105, 10, 8),
+    barra: new THREE.TorusGeometry(0.118, 0.011, 4, 10, Math.PI * 1.02),
+    franja: new THREE.TorusGeometry(0.16, 0.017, 4, 12, Math.PI),
+    brazo: new THREE.CapsuleGeometry(0.062, 0.2, 3, 8),
+    antebrazo: new THREE.CapsuleGeometry(0.05, 0.2, 3, 8),
+    mano: new THREE.SphereGeometry(0.058, 8, 6),
+    numero: new THREE.PlaneGeometry(0.3, 0.3),
+  };
+  return geo;
+}
+
+function uniforme(equipo) {
+  const color = equipo.color || (equipo.esLocal ? '#1d3c8f' : '#8f1d1d');
+  const alterno = equipo.colorAlterno || '#d9d9d9';
+  const camiseta = equipo.esLocal ? color : '#f1f2f4';
+  const numero = equipo.esLocal ? (luminancia(color) > 0.6 ? '#10151f' : '#ffffff') : (luminancia(color) > 0.75 ? '#10151f' : color);
+  const mat = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, ...extra });
+  return {
+    numero,
+    camiseta: mat(camiseta),
+    pantalon: mat(equipo.esLocal ? '#e6e7ea' : color),
+    calceta: mat(equipo.esLocal ? color : '#f1f2f4'),
+    casco: new THREE.MeshPhongMaterial({ color: equipo.esLocal ? (luminancia(alterno) > 0.9 ? color : alterno) : color, shininess: 110, specular: 0xbbbbbb }),
+    franja: mat(equipo.esLocal ? color : alterno),
+    barra: mat('#5b6270'),
+    guante: mat('#f4f4f4'),
+    zapato: mat('#16181d'),
+    pieles: PIEL.map((p) => mat(p)),
+  };
+}
+
+function crearJugador(datos, u, indice, sombras) {
+  const G = geometrias();
+  const piel = u.pieles[indice % u.pieles.length];
+  const malla = (g, m, proyecta = false) => { const x = new THREE.Mesh(g, m); x.castShadow = proyecta && sombras; return x; };
+  const raiz = new THREE.Group();
+  const cuerpo = new THREE.Group(); // todo el cuerpo: se inclina al caer o al lanzarse
+  raiz.add(cuerpo);
+  const cadera = new THREE.Group();
+  cadera.position.y = ALTO_CADERA;
+  cuerpo.add(cadera);
+  const pelvis = malla(G.cadera, u.pantalon, true);
+  pelvis.scale.set(0.85, 0.8, 1.05);
+  cadera.add(pelvis);
+
+  const pierna = (lado) => {
+    const muslo = new THREE.Group();
+    muslo.position.set(0, -0.03, lado * 0.105);
+    const m = malla(G.muslo, u.pantalon, true); m.position.y = -0.25;
+    const rodilla = new THREE.Group(); rodilla.position.y = -0.5;
+    const p = malla(G.pierna, u.calceta, true); p.position.y = -0.23;
+    const pie = malla(G.pie, u.zapato); pie.position.set(0.07, -0.455, 0);
+    rodilla.add(p, pie);
+    muslo.add(m, rodilla);
+    cadera.add(muslo);
+    return { muslo, rodilla };
+  };
+  const piernaIzq = pierna(-1);
+  const piernaDer = pierna(1);
+
+  const torso = new THREE.Group();
+  torso.position.y = 0.06;
+  cadera.add(torso);
+  const pecho = malla(G.torso, u.camiseta, true); pecho.position.y = 0.33; pecho.scale.set(0.74, 1, 1.1);
+  const hombreras = malla(G.hombreras, u.camiseta, true); hombreras.position.y = 0.56; hombreras.scale.set(0.82, 0.5, 1.42);
+  torso.add(pecho, hombreras);
+  if (datos.numero !== '') {
+    const mNumero = new THREE.MeshLambertMaterial({ map: texturaDeNumero(datos.numero, u.numero), transparent: true, alphaTest: 0.4 });
+    const frente = new THREE.Mesh(G.numero, mNumero); frente.position.set(0.148, 0.35, 0); frente.rotation.y = Math.PI / 2;
+    const espalda = new THREE.Mesh(G.numero, mNumero); espalda.position.set(-0.148, 0.37, 0); espalda.rotation.y = -Math.PI / 2;
+    torso.add(frente, espalda);
+  }
+  const cabeza = new THREE.Group();
+  cabeza.position.y = 0.83;
+  const casco = malla(G.casco, u.casco, true); casco.scale.set(1.08, 1, 0.96);
+  const cara = malla(G.cara, piel); cara.position.set(0.075, -0.035, 0);
+  const franja = malla(G.franja, u.franja); franja.scale.set(1.08, 1, 1);
+  const barra1 = malla(G.barra, u.barra); barra1.rotation.set(Math.PI / 2, 0, -Math.PI / 2 - 0.02); barra1.position.set(0.06, -0.035, 0);
+  const barra2 = malla(G.barra, u.barra); barra2.rotation.set(Math.PI / 2, 0, -Math.PI / 2 - 0.02); barra2.position.set(0.06, -0.095, 0);
+  cabeza.add(casco, cara, franja, barra1, barra2);
+  torso.add(cabeza);
+
+  const brazo = (lado) => {
+    const hombro = new THREE.Group();
+    hombro.position.set(0, 0.55, lado * 0.27);
+    const b = malla(G.brazo, u.camiseta); b.position.y = -0.15;
+    const codo = new THREE.Group(); codo.position.y = -0.31;
+    const a = malla(G.antebrazo, piel); a.position.y = -0.14;
+    const mano = malla(G.mano, u.guante); mano.position.y = -0.3;
+    codo.add(a, mano);
+    hombro.add(b, codo);
+    torso.add(hombro);
+    return { hombro, codo };
+  };
+  const brazoIzq = brazo(-1);
+  const brazoDer = brazo(1);
+
+  return {
+    id: datos.id, raiz, cuerpo, cadera, torso, cabeza, piernaIzq, piernaDer, brazoIzq, brazoDer,
+    deLinea: DE_LINEA.has(datos.rol), fase: indice * 1.7, rumbo: null, x: 0, z: 0,
+  };
+}
+
+// Pone la pose del cuerpo según lo que está haciendo el jugador (ciclos procedurales, sin archivos de animación).
+function posar(j, e, dt, antesDelCentro, llevaBalon) {
+  const amp = limitar(e.rapidez / 6.5, 0, 1);
+  j.fase += dt * (e.rapidez > 0.3 ? 5 + e.rapidez * 1.75 : 0);
+  const s = Math.sin(j.fase);
+  const paso = e.retrocede ? 0.55 : 1;
+  // Base: carrera (si va quieto, amp = 0 y queda de pie).
+  let musloI = (s * 0.95 + 0.12) * amp * paso;
+  let musloD = (-s * 0.95 + 0.12) * amp * paso;
+  let rodillaI = -(0.2 + 1.15 * Math.max(0, Math.sin(j.fase - 1.2))) * amp;
+  let rodillaD = -(0.2 + 1.15 * Math.max(0, Math.sin(j.fase - 1.2 + Math.PI))) * amp;
+  let hombroI = -s * 0.85 * amp;
+  let hombroD = s * 0.85 * amp;
+  let codoI = 0.25 + 1.2 * amp;
+  let codoD = 0.25 + 1.2 * amp;
+  let abrirBrazos = 0.08;
+  let inclinacion = e.retrocede ? 0.04 : 0.1 + 0.24 * amp;
+  let altura = Math.abs(Math.cos(j.fase)) * 0.05 * amp;
+  let caida = 0; // 0 de pie, 1 tendido boca abajo
+  let cabeceo = 0;
+
+  if (amp < 0.15) {
+    if (antesDelCentro && j.deLinea) {
+      // Postura de tres puntos de los linieros.
+      musloI = 1.05; musloD = 0.85; rodillaI = -1.65; rodillaD = -1.5; inclinacion = 1.0; altura = -0.3;
+      hombroI = 0.55; hombroD = 0.15; codoI = 0.2; codoD = 1.1; cabeceo = 0.7;
+    } else if (antesDelCentro) {
+      // Listos: rodillas un poco flexionadas y manos al frente.
+      musloI = 0.45; musloD = 0.3; rodillaI = -0.75; rodillaD = -0.6; inclinacion = 0.33; altura = -0.09;
+      hombroI = 0.25; hombroD = 0.25; codoI = 0.9; codoD = 0.9; cabeceo = 0.2;
+    } else {
+      musloI = 0.12; musloD = 0.06; rodillaI = -0.22; rodillaD = -0.16; inclinacion = 0.1; codoI = 0.5; codoD = 0.5;
+    }
+  }
+  if (llevaBalon && !e.gesto) { hombroD = 0.35; codoD = 2.0; abrirBrazos = -0.05; }
+
+  const f = e.fase;
+  switch (e.gesto) {
+    case 'lanzar': { // brazo atrás y latigazo hacia adelante
+      const carga = suave(f / 0.4); const suelta = suave((f - 0.4) / 0.35);
+      hombroD = mezclar(0.4, -1.0, carga) + suelta * 3.4; codoD = mezclar(1.6, 1.9, carga) - suelta * 1.5;
+      hombroI = 1.0 - suelta * 0.9; codoI = 0.9; inclinacion = -0.12 + suelta * 0.35;
+      musloI = 0.35; musloD = -0.25; rodillaI = -0.3; rodillaD = -0.2;
+      break;
+    }
+    case 'atrapar': { const u = Math.sin(Math.min(1, f * 1.3) * Math.PI); hombroI = hombroD = 0.6 + 1.7 * u; codoI = codoD = 0.7; abrirBrazos = -0.1; altura += 0.12 * u; break; }
+    case 'bloquear': {
+      const empuje = 0.15 * Math.sin(f * 30);
+      hombroI = hombroD = 1.25 + empuje; codoI = codoD = 0.55; inclinacion = 0.42; altura = -0.14;
+      if (amp < 0.3) { musloI = 0.6; musloD = 0.15; rodillaI = -0.95; rodillaD = -0.6; }
+      break;
+    }
+    case 'taclear': { const u = suave(f * 2.2); hombroI = hombroD = 1.5; codoI = codoD = 0.3; caida = 0.8 * u; abrirBrazos = 0.5; break; }
+    case 'caer': { const u = suave(f * 3); caida = u; hombroI = 1.9; hombroD = 0.6; codoD = 1.8; musloI = 0.3 * u; rodillaD = -0.5 * u; break; }
+    case 'patear': {
+      const u = suave(f / 0.3); const v = suave((f - 0.3) / 0.3);
+      musloD = mezclar(-0.9, 1.75, u) - v * 0.9; rodillaD = mezclar(-1.3, -0.05, u); musloI = -0.1; rodillaI = -0.15;
+      hombroI = 1.2 * u; hombroD = -0.6 * u; inclinacion = -0.18 * u; abrirBrazos = 0.5;
+      break;
+    }
+    case 'arrodillar': { const u = suave(f * 6); altura = -0.43 * u; musloI = 1.45 * u; rodillaI = -1.5 * u; musloD = 0.05; rodillaD = -1.55 * u; inclinacion = 0.15; break; }
+    case 'celebrar': { const u = Math.abs(Math.sin(f * 16)); hombroI = hombroD = 2.9; codoI = codoD = 0.25; abrirBrazos = 0.35; altura = 0.22 * u; inclinacion = -0.05; break; }
+    default:
+  }
+
+  // Los cambios de pose se suavizan para que no haya saltos.
+  const k = 1 - Math.exp(-dt * 16);
+  const a = (obj, eje, valor) => { obj.rotation[eje] += (valor - obj.rotation[eje]) * k; };
+  a(j.piernaIzq.muslo, 'z', musloI); a(j.piernaDer.muslo, 'z', musloD);
+  a(j.piernaIzq.rodilla, 'z', rodillaI); a(j.piernaDer.rodilla, 'z', rodillaD);
+  a(j.brazoIzq.hombro, 'z', hombroI); a(j.brazoDer.hombro, 'z', hombroD);
+  a(j.brazoIzq.hombro, 'x', abrirBrazos); a(j.brazoDer.hombro, 'x', -abrirBrazos);
+  a(j.brazoIzq.codo, 'z', codoI); a(j.brazoDer.codo, 'z', codoD);
+  a(j.torso, 'z', -inclinacion);
+  a(j.cabeza, 'z', cabeceo);
+  a(j.cuerpo, 'z', -caida * 1.5);
+  j.cuerpo.position.y += ((altura + caida * 0.2) - j.cuerpo.position.y) * k;
+  j.cadera.position.y += ((ALTO_CADERA - caida * 0.25) - j.cadera.position.y) * k;
+}
+
+// ---------------------------------------------------------------------------
+// La vista: una sola por página (un solo contexto WebGL), que se mueve de una jugada a otra.
+// ---------------------------------------------------------------------------
+
+let vista = null;
+
+function construirVista() {
+  const chica = Math.min(window.innerWidth, window.innerHeight) < 700;
+  const lienzoGL = document.createElement('canvas');
+  lienzoGL.className = 'vista3d-lienzo';
+  lienzoGL.setAttribute('role', 'img');
+  const render = new THREE.WebGLRenderer({ canvas: lienzoGL, antialias: true, powerPreference: 'high-performance' });
+  render.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  render.shadowMap.enabled = true;
+  render.shadowMap.type = THREE.PCFSoftShadowMap;
+  const escena = new THREE.Scene();
+  escena.background = new THREE.Color('#0d1424');
+  escena.fog = new THREE.Fog('#0d1424', 190, 420);
+  const camara = new THREE.PerspectiveCamera(22, 16 / 10, 1, 600);
+
+  // Luces de estadio: una principal con sombras suaves y luz de ambiente del cielo y del pasto.
+  escena.add(new THREE.HemisphereLight('#dbe6ff', '#2c5a34', 1.55));
+  const foco = new THREE.DirectionalLight('#fff4e0', 2.5);
+  foco.castShadow = true;
+  foco.shadow.mapSize.set(chica ? 1024 : 2048, chica ? 1024 : 2048);
+  Object.assign(foco.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 10, far: 200 });
+  foco.shadow.bias = -0.0006;
+  foco.shadow.normalBias = 0.04;
+  escena.add(foco, foco.target);
+  const relleno = new THREE.DirectionalLight('#cfe0ff', 0.7);
+  relleno.position.set(60, 50, 140);
+  escena.add(relleno);
+
+  // Alrededores: borde de la cancha y tribunas con gente (planos inclinados con puntos de colores).
+  const borde = new THREE.Mesh(new THREE.PlaneGeometry(190, 110), new THREE.MeshLambertMaterial({ color: '#1f5a2b' }));
+  borde.rotation.x = -Math.PI / 2; borde.position.set(50, -0.03, MEDIO); borde.receiveShadow = true;
+  escena.add(borde);
+  const matTribuna = new THREE.MeshBasicMaterial({ map: texturaDeTribuna() });
+  const tribuna = (ancho, x, z, giroY) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(ancho, 46), matTribuna);
+    m.rotation.order = 'YXZ'; m.rotation.y = giroY; m.rotation.x = -0.62;
+    m.position.set(x, 17, z);
+    escena.add(m);
+    const muro = new THREE.Mesh(new THREE.PlaneGeometry(ancho, 3.4), new THREE.MeshLambertMaterial({ color: '#17223c' }));
+    muro.rotation.y = giroY; muro.position.set(x + Math.sin(giroY) * 15.5, 1.7, z + Math.cos(giroY) * 15.5);
+    escena.add(muro);
+  };
+  tribuna(190, 50, -34, 0); // banda lejana
+  tribuna(120, -48, MEDIO, Math.PI / 2); // detrás de la zona del local
+  tribuna(120, 148, MEDIO, -Math.PI / 2); // detrás de la zona del visitante
+
+  // Postes amarillos al fondo de cada zona de anotación.
+  const matPoste = new THREE.MeshLambertMaterial({ color: '#ffd23f' });
+  for (const [px, signo] of [[-10, 1], [110, -1]]) {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.33, 8), matPoste); base.position.set(px - signo * 1.2, 1.66, MEDIO);
+    const cuello = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), matPoste); cuello.rotation.z = Math.PI / 2; cuello.position.set(px - signo * 0.6, 3.33, MEDIO);
+    const travesano = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 6.17, 8), matPoste); travesano.rotation.x = Math.PI / 2; travesano.position.set(px, 3.33, MEDIO);
+    escena.add(base, cuello, travesano);
+    for (const lado of [-1, 1]) {
+      const vertical = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 10, 8), matPoste);
+      vertical.position.set(px, 8.33, MEDIO + lado * 3.085);
+      escena.add(vertical);
+    }
+    for (const m of [base, travesano]) m.castShadow = true;
+  }
+
+  // Cancha (la textura se pinta con los colores de los equipos del partido).
+  const cancha = new THREE.Mesh(new THREE.PlaneGeometry(120, ANCHO_CANCHA), new THREE.MeshLambertMaterial({ color: '#ffffff' }));
+  cancha.rotation.x = -Math.PI / 2; cancha.position.set(50, 0, MEDIO); cancha.receiveShadow = true;
+  escena.add(cancha);
+
+  // Líneas de transmisión: azul donde empieza la jugada, amarilla la que hay que alcanzar.
+  const lineaTV = (color) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.42, ANCHO_CANCHA - 1.4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.025; m.position.z = MEDIO; m.visible = false;
+    escena.add(m);
+    return m;
+  };
+  const lineaGolpeo = lineaTV('#3f8cff');
+  const lineaMarca = lineaTV('#ffd43b');
+
+  // Balón.
+  const balon = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), new THREE.MeshLambertMaterial({ map: texturaDeBalon() }));
+  balon.scale.set(1, 1.65, 1); // alargado sobre su eje Y; se orienta al dibujar
+  balon.castShadow = true;
+  const ejeBalon = new THREE.Group();
+  ejeBalon.add(balon);
+  escena.add(ejeBalon);
+
+  // Bandera amarilla de los penales.
+  const bandera = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.3), new THREE.MeshLambertMaterial({ color: '#ffd400' }));
+  bandera.castShadow = true; bandera.visible = false;
+  escena.add(bandera);
+
+  // Confeti del touchdown.
+  const CONFETI = 150;
+  const confeti = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.22, 0.14), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), CONFETI);
+  confeti.visible = false; confeti.frustumCulled = false;
+  escena.add(confeti);
+
+  const grupoJugadores = new THREE.Group();
+  escena.add(grupoJugadores);
+
+  vista = {
+    lienzoGL, render, escena, camara, foco, cancha, lineaGolpeo, lineaMarca, ejeBalon, balon, bandera, confeti, CONFETI, grupoJugadores,
+    chica, jugadores: [], uniformes: new Map(), texturaCancha: null, claveCancha: '', sesion: null,
+  };
+  return vista;
+}
+
+// Deja la vista sin sesión activa (se llama al abrir otra jugada o al cerrar).
+function soltar() {
+  const s = vista?.sesion;
+  if (!s) return;
+  s.detener();
+  vista.sesion = null;
+}
+
+// Muestra una jugada en 3D dentro de `contenedor`. Lanza un error si no se puede (quien llama pone la pizarra 2D).
+// opciones: { congelarEn: segundos } dibuja un solo cuadro en ese instante (capturas y verificación).
+export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
+  await cargarThree();
+  if (!vista) construirVista();
+  soltar();
+  const v = vista;
+
+  // --- Estructura en la página ---
+  contenedor.textContent = '';
+  contenedor.classList.add('vista3d');
+  contenedor.dataset.estado = 'cargando';
+  const marco = document.createElement('div');
+  marco.className = 'vista3d-marco';
+  const capa = document.createElement('div');
+  capa.className = 'vista3d-capa';
+  capa.setAttribute('aria-hidden', 'true');
+  const cartel = document.createElement('p');
+  cartel.className = 'vista3d-cartel';
+  cartel.hidden = true;
+  const sello = document.createElement('p');
+  sello.className = 'vista3d-sello';
+  sello.hidden = true;
+  marco.append(v.lienzoGL, capa, sello, cartel);
+  v.lienzoGL.setAttribute('aria-label', `${linea.descripcion} ${linea.aviso}`);
+  const texto = document.createElement('p');
+  texto.className = 'pizarra-texto';
+  texto.textContent = linea.descripcion;
+  const aviso = document.createElement('p');
+  aviso.className = 'vista3d-aviso';
+  aviso.textContent = linea.aviso + (linea.jugadores.some((j) => j.numero !== '' && !j.nombre) ? ' Los números de los demás jugadores son de adorno.' : '');
+  const botones = document.createElement('div');
+  botones.className = 'vista3d-botones';
+  const boton = (t) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'boton boton-chico'; b.textContent = t; return b; };
+  const bRepetir = boton('Ver de nuevo');
+  const bRepeticion = boton('Repetición');
+  bRepeticion.title = 'Otro ángulo, desde detrás de la zona de anotación, en cámara lenta';
+  botones.append(bRepetir, bRepeticion);
+  contenedor.append(marco, texto, aviso, botones);
+
+  // --- Escena de esta jugada ---
+  const local = linea.ataque.esLocal ? linea.ataque : linea.defensa;
+  const visitante = linea.ataque.esLocal ? linea.defensa : linea.ataque;
+  const claveCancha = `${local.id}|${local.color}|${visitante.id}|${visitante.color}`;
+  if (v.claveCancha !== claveCancha) {
+    v.texturaCancha?.dispose();
+    v.texturaCancha = texturaDeCancha(local, visitante, v.chica);
+    v.cancha.material.map = v.texturaCancha;
+    v.cancha.material.needsUpdate = true;
+    v.claveCancha = claveCancha;
+    v.uniformes.clear();
+  }
+  const uniformeDe = (equipo) => {
+    if (!v.uniformes.has(equipo.id)) v.uniformes.set(equipo.id, uniforme(equipo));
+    return v.uniformes.get(equipo.id);
+  };
+  v.grupoJugadores.clear();
+  v.jugadores = linea.jugadores.map((d, i) => {
+    const j = crearJugador(d, uniformeDe(d.bando === 'ataque' ? linea.ataque : linea.defensa), i, true);
+    v.grupoJugadores.add(j.raiz);
+    return j;
+  });
+  v.lineaGolpeo.visible = linea.scrimmage !== null;
+  if (linea.scrimmage !== null) v.lineaGolpeo.position.x = linea.scrimmage;
+  v.lineaMarca.visible = linea.marca !== null;
+  if (linea.marca !== null) v.lineaMarca.position.x = linea.marca;
+  v.bandera.visible = false;
+  v.confeti.visible = false;
+
+  // Rótulos de los protagonistas (pasador, receptor, corredor...) sobre la imagen.
+  const rotulos = linea.rotulos.map((r) => {
+    const el = document.createElement('span');
+    el.className = `vista3d-rotulo vista3d-rotulo-${linea.jugadores.find((j) => j.id === r.jugador)?.bando || 'ataque'}`;
+    el.textContent = `${r.numero ? `${r.numero} ` : ''}${r.nombre}`;
+    el.title = r.papel;
+    capa.append(el);
+    return { el, jugador: v.jugadores.find((j) => j.id === r.jugador) };
+  });
+
+  // --- Estado de la reproducción ---
+  const mirada = new THREE.Vector3(linea.desde, 1, MEDIO);
+  const deseo = new THREE.Vector3(linea.desde, 1, MEDIO);
+  const anteriorBalon = new THREE.Vector3(linea.desde, 0, MEDIO);
+  const tmp = new THREE.Vector3();
+  const tmpObj = new THREE.Object3D();
+  let t = 0;
+  let velocidad = 1;
+  let modo = 'transmision'; // o 'repeticion'
+  let fov = 24;
+  let cuadro = 0;
+  let respaldo = 0;
+  let ultimo = 0;
+  let activo = true;
+  let visible = true;
+  let cuadros = 0;
+  let giroBalon = 0;
+  let confetiDesde = -1;
+  const piezas = [];
+  const eventosDeZoom = linea.eventos.filter((e) => ['atrapada', 'tacleo', 'intercepcion', 'touchdown', 'incompleto'].includes(e.tipo));
+  const tTouchdown = linea.eventos.find((e) => e.tipo === 'touchdown')?.t ?? null;
+  const banderaEv = linea.eventos.find((e) => e.tipo === 'bandera') || null;
+
+  const medir = () => {
+    const ancho = Math.max(200, Math.round(marco.clientWidth || contenedor.clientWidth || 328));
+    const alto = Math.round(ancho * (ancho < 520 ? 0.68 : 0.56));
+    v.render.setSize(ancho, alto, false);
+    v.lienzoGL.style.width = '100%';
+    v.lienzoGL.style.height = 'auto';
+    v.camara.aspect = ancho / alto;
+    return { ancho, alto };
+  };
+  let tamano = medir();
+
+  const textoCartel = () => {
+    if (tTouchdown !== null) return '¡TOUCHDOWN!';
+    const tipos = linea.eventos.map((e) => e.tipo);
+    if (tipos.includes('gol-de-campo-bueno')) return '¡Gol de campo!';
+    if (tipos.includes('gol-de-campo-fallado')) return 'Gol de campo fallado';
+    if (tipos.includes('intercepcion')) return '¡Intercepción!';
+    if (tipos.includes('incompleto')) return 'Pase incompleto';
+    if (linea.forma === 'penal') return 'Castigo';
+    const yardas = Math.round(linea.sentido * (linea.hasta - linea.desde));
+    if (linea.forma === 'patada') return '';
+    if (yardas > 0) return `+${yardas} ${yardas === 1 ? 'yarda' : 'yardas'}`;
+    if (yardas < 0) return `${yardas} ${yardas === -1 ? 'yarda' : 'yardas'}`;
+    return 'Sin avance';
+  };
+
+  // Avanza la cámara dt segundos hacia donde debe mirar. La cámara es un camarógrafo: sigue al balón con retraso,
+  // se adelanta un poco hacia donde va la jugada y cierra el plano en la atrapada y en el tacleo.
+  const moverCamara = (m, dt) => {
+    const b = m.balon;
+    tmp.set(b.x - anteriorBalon.x, 0, b.z - anteriorBalon.z).divideScalar(Math.max(dt, 1e-3));
+    anteriorBalon.set(b.x, 0, b.z);
+    const anticipo = 0.55;
+    const antes = linea.tSnap !== null && t < linea.tSnap;
+    deseo.set(
+      b.x + limitar(tmp.x * anticipo, -7, 7) + (antes ? linea.sentido * 3 : 0),
+      0.9 + Math.min(6, b.y * 0.32),
+      mezclar(b.z + limitar(tmp.z * anticipo, -4, 4), MEDIO, 0.35),
+    );
+    const k = 1 - Math.exp(-dt * (modo === 'repeticion' ? 4 : 2.6));
+    mirada.lerp(deseo, k);
+    let fovObjetivo;
+    if (modo === 'repeticion') {
+      const atras = limitar((linea.scrimmage ?? linea.desde) - linea.sentido * 27, -27, 127);
+      v.camara.position.set(atras, 11.5, MEDIO + 2.5);
+      fovObjetivo = 27;
+    } else {
+      v.camara.position.set(limitar(50 + (mirada.x - 50) * 0.62, -2, 102), 31, ANCHO_CANCHA + 66);
+      const estrecho = limitar(1.55 / v.camara.aspect, 1, 1.3);
+      fovObjetivo = (antes ? 19.5 : 17.5) * estrecho;
+      if (b.enAire && b.y > 5) fovObjetivo *= 1.18; // las patadas altas necesitan más aire
+      for (const e of eventosDeZoom) if (t > e.t - 0.15 && t < e.t + 1.1) fovObjetivo *= 0.74;
+    }
+    fov += (fovObjetivo - fov) * (1 - Math.exp(-dt * 2.4));
+    v.camara.fov = fov;
+    v.camara.lookAt(mirada);
+    v.camara.updateProjectionMatrix();
+    v.foco.position.set(mirada.x - 26, 62, mirada.z + 34);
+    v.foco.target.position.set(mirada.x, 0, mirada.z);
+  };
+
+  const ponerEscena = (dt) => {
+    const m = muestrear(linea, t);
+    const antes = linea.tSnap === null || t < linea.tSnap;
+    for (let i = 0; i < v.jugadores.length; i++) {
+      const j = v.jugadores[i];
+      const e = m.jugadores[i];
+      j.raiz.position.set(e.x, 0, e.z);
+      // Giro suave hacia donde mira.
+      if (j.rumbo === null) j.rumbo = e.rumbo;
+      let d = e.rumbo - j.rumbo;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      j.rumbo += d * (1 - Math.exp(-dt * 11));
+      j.raiz.rotation.y = -j.rumbo;
+      posar(j, e, dt, antes, m.balon.portador === j.id);
+    }
+    // Balón: en espiral en los pases, dando tumbos en las patadas.
+    const b = m.balon;
+    v.ejeBalon.position.set(b.x, Math.max(0.12, b.y), b.z);
+    if (b.enAire) {
+      giroBalon += dt * (b.giro === 'tumbo' ? 13 : 26);
+      v.ejeBalon.rotation.set(0, -b.rumbo, 0);
+      if (b.giro === 'tumbo') v.balon.rotation.set(0, 0, giroBalon);
+      else v.balon.rotation.set(giroBalon, 0, -Math.PI / 2 + (b.inclinacion || 0));
+    } else {
+      v.ejeBalon.rotation.set(0, linea.sentido > 0 ? 0 : Math.PI, 0);
+      v.balon.rotation.set(0, 0, -Math.PI / 2 + (b.portador ? 0.5 : 0));
+    }
+    // Bandera amarilla: sale volando y cae cerca de la falta.
+    if (banderaEv && t >= banderaEv.t) {
+      const u = limitar((t - banderaEv.t) / 0.8, 0, 1);
+      v.bandera.visible = true;
+      v.bandera.position.set(banderaEv.x - linea.sentido * 4 * (1 - u), 0.06 + Math.sin(u * Math.PI) * 3.2, banderaEv.z + 3 * (1 - u));
+      v.bandera.rotation.set(u < 1 ? t * 9 : 0, u < 1 ? t * 7 : 0.6, 0);
+    } else v.bandera.visible = false;
+    // Confeti con los colores del equipo que anota.
+    if (tTouchdown !== null && t >= tTouchdown && t < tTouchdown + 3.2) {
+      if (confetiDesde !== tTouchdown || !piezas.length) {
+        confetiDesde = tTouchdown;
+        piezas.length = 0;
+        const colores = [linea.ataque.color || '#ffd43b', linea.ataque.colorAlterno || '#ffffff', '#ffffff'];
+        const color = new THREE.Color();
+        for (let i = 0; i < v.CONFETI; i++) {
+          const ang = (i * 2.399) % (Math.PI * 2);
+          const fuerza = 2 + ((i * 37) % 60) / 12;
+          piezas.push({ x: b.x, y: 2.2, z: b.z, vx: Math.cos(ang) * fuerza, vy: 6 + ((i * 53) % 50) / 9, vz: Math.sin(ang) * fuerza, giro: i });
+          v.confeti.setColorAt(i, color.set(colores[i % colores.length]));
+        }
+        v.confeti.instanceColor.needsUpdate = true;
+      }
+      v.confeti.visible = true;
+      const edad = t - tTouchdown;
+      for (let i = 0; i < piezas.length; i++) {
+        const p = piezas[i];
+        const y = Math.max(0.05, p.y + p.vy * edad - 4.9 * edad * edad * 0.9);
+        tmpObj.position.set(p.x + p.vx * edad, y, p.z + p.vz * edad);
+        tmpObj.rotation.set(y > 0.06 ? edad * 7 + p.giro : -Math.PI / 2, p.giro, edad * 5);
+        tmpObj.updateMatrix();
+        v.confeti.setMatrixAt(i, tmpObj.matrix);
+      }
+      v.confeti.instanceMatrix.needsUpdate = true;
+    } else v.confeti.visible = false;
+    moverCamara(m, dt);
+    return m;
+  };
+
+  const ponerRotulos = () => {
+    for (const r of rotulos) {
+      if (!r.jugador) continue;
+      tmp.set(r.jugador.raiz.position.x, 2.75, r.jugador.raiz.position.z).project(v.camara);
+      const dentro = tmp.z < 1 && Math.abs(tmp.x) < 0.98 && Math.abs(tmp.y) < 0.98;
+      r.el.hidden = !dentro;
+      if (dentro) { r.el.style.left = `${((tmp.x + 1) / 2 * 100).toFixed(2)}%`; r.el.style.top = `${((1 - tmp.y) / 2 * 100).toFixed(2)}%`; }
+    }
+  };
+
+  const dibujar = (dt) => {
+    ponerEscena(dt);
+    v.render.render(v.escena, v.camara);
+    ponerRotulos();
+    cuadros++;
+    contenedor.dataset.cuadros = String(cuadros);
+  };
+
+  const terminar = () => {
+    cancelAnimationFrame(cuadro);
+    clearTimeout(respaldo);
+    cuadro = 0;
+    const c = textoCartel();
+    cartel.textContent = c;
+    cartel.hidden = !c;
+    cartel.classList.toggle('vista3d-cartel-anotacion', tTouchdown !== null);
+    contenedor.dataset.estado = 'fin';
+  };
+
+  const paso = (ahora) => {
+    cuadro = 0;
+    if (!activo) return;
+    const dt = Math.min(0.05, Math.max(0.001, (ahora - ultimo) / 1000));
+    ultimo = ahora;
+    t = Math.min(linea.duracion, t + dt * velocidad);
+    dibujar(dt * velocidad);
+    if (t >= linea.duracion) { terminar(); return; }
+    if (visible) cuadro = requestAnimationFrame(paso);
+  };
+
+  // Lleva la escena al segundo `hasta` sin dibujar cada cuadro (para saltar o congelar) y dibuja uno.
+  const saltarA = (hasta) => {
+    const fin = limitar(hasta, 0, linea.duracion);
+    for (const j of v.jugadores) j.rumbo = null;
+    t = 0; fov = modo === 'repeticion' ? 27 : 24;
+    mirada.set(linea.desde, 1, MEDIO);
+    anteriorBalon.set(linea.desde, 0, MEDIO);
+    ponerEscena(1 / 30);
+    while (t < fin) { t = Math.min(fin, t + 1 / 30); ponerEscena(1 / 30); }
+    v.render.render(v.escena, v.camara);
+    ponerRotulos();
+    cuadros++;
+    contenedor.dataset.cuadros = String(cuadros);
+  };
+
+  const reproducir = (nuevoModo = 'transmision') => {
+    cancelAnimationFrame(cuadro);
+    clearTimeout(respaldo);
+    modo = nuevoModo;
+    velocidad = modo === 'repeticion' ? 0.42 : 1;
+    cartel.hidden = true;
+    sello.hidden = modo !== 'repeticion';
+    sello.textContent = 'Repetición · cámara lenta';
+    contenedor.dataset.estado = 'animando';
+    contenedor.dataset.camara = modo;
+    activo = true;
+    tamano = medir();
+    saltarA(0);
+    ultimo = performance.now();
+    cuadro = requestAnimationFrame(paso);
+    // Si el navegador casi no entrega cuadros (pestaña en segundo plano, ahorro de batería), la jugada igual llega al final.
+    respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin') { saltarA(linea.duracion); terminar(); } }, (linea.duracion / velocidad) * 1000 + 1500);
+  };
+
+  bRepetir.addEventListener('click', () => reproducir('transmision'));
+  bRepeticion.addEventListener('click', () => reproducir('repeticion'));
+
+  // Pausa cuando no se ve: pestaña oculta o la vista fuera de la pantalla.
+  const alCambiarVisibilidad = () => {
+    const ahoraVisible = !document.hidden && enPantalla;
+    if (ahoraVisible && !visible && contenedor.dataset.estado === 'animando' && !cuadro) { ultimo = performance.now(); cuadro = requestAnimationFrame(paso); }
+    visible = ahoraVisible;
+  };
+  let enPantalla = true;
+  const observador = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver((entradas) => { enPantalla = entradas.some((x) => x.isIntersecting); alCambiarVisibilidad(); })
+    : null;
+  observador?.observe(marco);
+  document.addEventListener('visibilitychange', alCambiarVisibilidad);
+  const alRedimensionar = () => { tamano = medir(); if (contenedor.dataset.estado === 'fin') { v.camara.updateProjectionMatrix(); v.render.render(v.escena, v.camara); ponerRotulos(); } };
+  window.addEventListener('resize', alRedimensionar);
+  const alPerderContexto = (ev) => { ev.preventDefault(); sesion.detener(); contenedor.dataset.estado = 'error'; opciones.alFallar?.(); };
+  v.lienzoGL.addEventListener('webglcontextlost', alPerderContexto);
+
+  const sesion = {
+    detener() {
+      activo = false;
+      cancelAnimationFrame(cuadro);
+      clearTimeout(respaldo);
+      observador?.disconnect();
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+      window.removeEventListener('resize', alRedimensionar);
+      v.lienzoGL.removeEventListener('webglcontextlost', alPerderContexto);
+      if (contenedor.dataset.estado === 'animando') contenedor.dataset.estado = 'detenida';
+      v.lienzoGL.remove();
+    },
+  };
+  v.sesion = sesion;
+  contenedor.dataset.jugadores = String(v.jugadores.length);
+
+  if (typeof opciones.congelarEn === 'number') {
+    modo = opciones.camara === 'repeticion' ? 'repeticion' : 'transmision';
+    sello.hidden = modo !== 'repeticion';
+    sello.textContent = 'Repetición · cámara lenta';
+    contenedor.dataset.camara = modo;
+    saltarA(opciones.congelarEn);
+    if (opciones.congelarEn >= linea.duracion) terminar(); else contenedor.dataset.estado = 'congelada';
+  } else {
+    reproducir('transmision');
+  }
+  return { reproducir, cerrar: () => { if (v.sesion === sesion) soltar(); }, contenedor };
+}
+
+// Cierra la vista 3D que esté abierta (si hay alguna).
+export function cerrarVista3D() { soltar(); }

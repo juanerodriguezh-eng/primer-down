@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/vista3d.js', '/js/vendor/three.module.min.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -52,9 +52,22 @@ const PAGINAS = [
   ] },
   { nombre: 'pizarra-en-jugada', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=abierta', revisar: (dom) => [
     ['botón "Ver en la pizarra" en las jugadas de balón', contar(dom, /class="boton-pizarra"/g) >= 40],
-    ['la pizarra de la jugada más reciente se abrió', dom.includes('Ocultar la pizarra') && /<div class="pizarra" data-forma="carrera">/.test(dom)],
+    ['la pizarra de la jugada más reciente se abrió', dom.includes('Ocultar la jugada') && /<div class="pizarra" data-forma="carrera">/.test(dom)],
     ['la animación terminó (balón en su destino)', /class="cancha pizarra-cancha"[^>]*data-estado="fin"/.test(dom)],
     ['descripción del movimiento', dom.includes('El balón va por tierra de la yarda 39 de los Commanders a la yarda 37 de los Commanders: 2 yardas hacia la derecha.')],
+  ] },
+  // Vista 3D: con WebGL por software dibuja la jugada; sin WebGL (--disable-3d-apis) cae en la pizarra 2D.
+  { nombre: 'vista-3d', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=3d&t3d=2.5', gl: true, revisar: (dom) => [
+    ['la vista 3D dibujó la jugada con 22 jugadores', /<div class="vista3d" data-estado="congelada"[^>]*data-jugadores="22"/.test(dom) || /<div class="vista3d"[^>]*data-jugadores="22"[^>]*data-estado="congelada"/.test(dom)],
+    ['el lienzo tiene texto alternativo con el aviso de recreación', /<canvas class="vista3d-lienzo"[^>]*aria-label="[^"]*Recreación ilustrada[^"]*"/.test(dom)],
+    ['rótulo del protagonista sacado del texto', /class="vista3d-rotulo[^"]*"[^>]*>[^<]*Skattebo</.test(dom)],
+    ['aviso visible de recreación ilustrada', /<p class="vista3d-aviso">Recreación ilustrada: ESPN no entrega la posición de cada jugador/.test(dom)],
+    ['botones "Ver de nuevo", "Repetición" y "Ver la pizarra 2D"', dom.includes('>Ver de nuevo<') && dom.includes('>Repetición<') && dom.includes('>Ver la pizarra 2D<')],
+  ] },
+  { nombre: 'vista-3d-sin-webgl', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=3d', sinGl: true, revisar: (dom) => [
+    ['sin WebGL aparece la pizarra 2D con una nota', dom.includes('La vista 3D no está disponible en este dispositivo') && /<div class="pizarra" data-forma="carrera">/.test(dom)],
+    ['la pizarra 2D terminó su animación', /class="cancha pizarra-cancha"[^>]*data-estado="fin"/.test(dom)],
+    ['no queda ninguna vista 3D a medias', !/class="vista3d"/.test(dom)],
   ] },
   { nombre: 'repeticion-final', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188', revisar: (dom) => [
     ['188 jugadas pintadas', contar(dom, /<article class="jugada /g) === 188],
@@ -139,8 +152,9 @@ try {
     ojo('no se encontró Chrome ni Edge: no se revisaron las páginas en un navegador');
   } else {
     if (CAPTURAS) mkdirSync(path.join(RAIZ, 'herramientas', 'capturas'), { recursive: true });
-    const comunes = ['--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', `--user-data-dir=${perfil}`, '--virtual-time-budget=12000', '--enable-logging=stderr', '--v=0'];
+    const base = ['--headless=new', '--no-first-run', '--hide-scrollbars', `--user-data-dir=${perfil}`, '--virtual-time-budget=12000', '--enable-logging=stderr', '--v=0'];
     for (const pagina of PAGINAS) {
+      const comunes = [...base, ...(pagina.gl ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : ['--disable-gpu']), ...(pagina.sinGl ? ['--disable-3d-apis'] : [])];
       console.log(`Página: ${pagina.nombre}  (${pagina.ruta})`);
       const r = spawnSync(navegador, [...comunes, '--window-size=360,800', '--dump-dom', BASE + pagina.ruta], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 90000 });
       const dom = r.stdout || '';

@@ -8,6 +8,8 @@ import { dibujarCancha } from './cancha.js';
 import { crearRepeticion } from './repeticion.js';
 import { trazoDeJugada, dibujarPizarra } from './pizarra.js';
 import { crearSondeo, mensajeDeFallo } from './vivo.js';
+import { lineaDeTiempo } from './jugada3d.js';
+import { puedeUsar3D, mostrarJugada3D, cerrarVista3D } from './vista3d.js';
 import { simularEnCurso, FORMAS_EN_VIVO } from './simulador.js';
 
 const parametros = new URLSearchParams(location.search);
@@ -19,7 +21,7 @@ const desdeGuardado = parametros.get('fuente') === 'guardado';
 // ?fuente=simulado convierte el partido guardado en uno "en curso" que avanza solo (demostración y pruebas del modo en vivo).
 const simulado = parametros.get('fuente') === 'simulado';
 
-let abrirPizarraAlCargar = parametros.get('pizarra') === 'abierta';
+let abrirAlCargar = { abierta: '2d', '3d': '3d' }[parametros.get('pizarra')] || '';
 
 const $ = (id) => document.getElementById(id);
 const zonas = { avisos: $('avisos'), marcador: $('marcador'), controles: $('controles'), situacion: $('situacion'), resumen: $('resumen'), feed: $('feed') };
@@ -126,20 +128,71 @@ const pintadas = new Map(); // id de jugada -> { el, firma }
 const secciones = new Map(); // id de drive -> { el, titulo, lista }
 let ordenPintado = [];
 
-// Botón "Ver en la pizarra": abre debajo de la jugada una cancha con el movimiento real del balón.
+// Botón para ver la jugada: abre debajo la recreación en 3D (22 jugadores, cámara de transmisión) y, si el
+// dispositivo no puede con ella (sin WebGL, error al cargar o "reducir movimiento"), la pizarra 2D de siempre.
+let hay3D = null; // se averigua una sola vez
+const puede3D = () => { if (hay3D === null) hay3D = puedeUsar3D(); return hay3D; };
+let abierta3D = null; // { zona, boton } de la jugada que tiene la vista 3D (solo hay una a la vez)
+
+const contexto3D = (p) => ({
+  local: { ...p.ctx.local, color: p.local.color, colorAlterno: p.local.colorAlterno },
+  visitante: { ...p.ctx.visitante, color: p.visitante.color, colorAlterno: p.visitante.colorAlterno },
+  dorsales: p.dorsales || null,
+});
+
+function cerrarZona(zona, boton) {
+  zona.hidden = true;
+  boton.setAttribute('aria-expanded', 'false');
+  boton.textContent = boton.dataset.texto;
+  if (abierta3D?.zona === zona) { cerrarVista3D(); abierta3D = null; vaciar(zona); }
+}
+
+async function abrirVista(zona, boton, j, p, trazo, en3D, opciones = {}) {
+  if (abierta3D?.zona === zona) { cerrarVista3D(); abierta3D = null; }
+  vaciar(zona);
+  if (en3D && !puede3D()) { en3D = false; opciones = { nota: true }; } // pedida por la dirección en un dispositivo sin WebGL
+  const cambiar = (texto, a3D) => {
+    const b = crear('button', { type: 'button', class: 'boton-enlace' }, texto);
+    b.addEventListener('click', () => abrirVista(zona, boton, j, p, trazo, a3D));
+    return b;
+  };
+  if (en3D) {
+    const linea = lineaDeTiempo(j, contexto3D(p));
+    const caja = crear('div', {});
+    zona.append(caja, cambiar('Ver la pizarra 2D', false));
+    try {
+      if (!linea) throw new Error('Jugada sin recreación');
+      if (abierta3D && abierta3D.zona !== zona) cerrarZona(abierta3D.zona, abierta3D.boton);
+      abierta3D = { zona, boton };
+      await mostrarJugada3D(caja, linea, { ...opciones, alFallar: () => abrirVista(zona, boton, j, p, trazo, false, { nota: true }) });
+      return;
+    } catch {
+      if (abierta3D?.zona === zona) abierta3D = null;
+      hay3D = false; // no se vuelve a intentar en esta visita
+      vaciar(zona);
+      opciones = { nota: true };
+    }
+  }
+  const bloque = dibujarPizarra(trazo, p);
+  if (opciones.nota) zona.append(crear('p', { class: 'vista3d-aviso' }, 'La vista 3D no está disponible en este dispositivo: te mostramos la pizarra.'));
+  zona.append(bloque);
+  if (puede3D()) zona.append(cambiar('Ver en 3D', true));
+  bloque.animar();
+}
+
 function botonPizarra(j, p) {
   const trazo = trazoDeJugada(j, p.ctx);
   if (!trazo) return null;
   const zona = crear('div', { class: 'pizarra-zona', hidden: true });
-  const boton = crear('button', { type: 'button', class: 'boton-pizarra', 'aria-expanded': 'false' }, 'Ver en la pizarra');
-  boton.addEventListener('click', () => {
-    const abrir = zona.hidden;
-    zona.hidden = !abrir;
-    boton.setAttribute('aria-expanded', String(abrir));
-    boton.textContent = abrir ? 'Ocultar la pizarra' : 'Ver en la pizarra';
-    if (!abrir) return;
-    if (!zona.firstChild) zona.append(dibujarPizarra(trazo, p));
-    zona.firstChild.animar();
+  const texto = puede3D() ? 'Ver la jugada en 3D' : 'Ver en la pizarra';
+  const boton = crear('button', { type: 'button', class: 'boton-pizarra', 'aria-expanded': 'false', dataset: { texto } }, texto);
+  boton.addEventListener('click', (ev) => {
+    if (!zona.hidden) { cerrarZona(zona, boton); return; }
+    zona.hidden = false;
+    boton.setAttribute('aria-expanded', 'true');
+    boton.textContent = 'Ocultar la jugada';
+    const forzada = ev.detail && typeof ev.detail === 'object' ? ev.detail : null; // apertura automática por la dirección
+    abrirVista(zona, boton, j, p, trazo, forzada ? forzada.en3D : puede3D(), forzada?.opciones);
   });
   return crear('div', { class: 'pizarra-contenedor' }, boton, zona);
 }
@@ -216,10 +269,16 @@ function pintar(p, { animar = true } = {}) {
   pintarFeed(p, animar);
   document.body.dataset.estado = p.estado;
   document.body.dataset.listo = '1';
-  // ?pizarra=abierta abre la pizarra de la jugada más reciente al cargar (enlaces directos y verificación automática).
-  if (abrirPizarraAlCargar) {
+  // ?pizarra=abierta abre la pizarra 2D de la jugada más reciente al cargar y ?pizarra=3d abre la vista 3D
+  // (enlaces directos y verificación automática). Con &t3d=2.5 la vista 3D se congela en ese segundo.
+  if (abrirAlCargar) {
     const boton = zonas.feed.querySelector('.boton-pizarra');
-    if (boton) { abrirPizarraAlCargar = false; boton.click(); }
+    if (boton) {
+      const en3D = abrirAlCargar === '3d';
+      const opciones = en3D && parametros.has('t3d') ? { congelarEn: Number(parametros.get('t3d')) || 0, camara: parametros.get('camara') || '' } : {};
+      abrirAlCargar = '';
+      boton.dispatchEvent(new CustomEvent('click', { detail: { en3D, opciones } }));
+    }
   }
 }
 
