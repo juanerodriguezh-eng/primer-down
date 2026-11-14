@@ -191,7 +191,10 @@ export function construirPartido(summary, opciones = {}) {
 
   const drives = [];
   let marcador = { local: 0, visitante: 0 };
-  let probLocal = prob.size ? 0.5 : null;
+  // Punto de partida: el primer valor que da ESPN (el pronóstico previo al partido), no 50 %. Con 50 % la
+  // patada inicial parecía mover el partido 20 o 30 puntos y salía como "jugada clave" sin serlo.
+  const primera = (Array.isArray(summary?.winprobability) ? summary.winprobability : []).find((w) => typeof w?.homeWinPercentage === 'number');
+  let probLocal = primera ? primera.homeWinPercentage : null;
   let incluidas = 0;
   let ultima = null;
 
@@ -210,7 +213,9 @@ export function construirPartido(summary, opciones = {}) {
         if (avisoZonaRoja) explicacion.porQue = null;
         avisoZonaRoja = true;
       }
-      if (typeof play?.homeScore === 'number' && typeof play?.awayScore === 'number') {
+      // Dato malo de ESPN: a veces una pausa llega con marcador 0-0 en pleno partido. Un marcador no vuelve a cero.
+      const marcadorEnBlanco = play?.homeScore === 0 && play?.awayScore === 0 && marcador.local + marcador.visitante > 0;
+      if (typeof play?.homeScore === 'number' && typeof play?.awayScore === 'number' && !marcadorEnBlanco) {
         marcador = { local: play.homeScore, visitante: play.awayScore };
       }
       let cambio = 0;
@@ -303,7 +308,7 @@ export function jugadasClave(partido, cuantas = 5) {
   let orden = 0;
   for (const d of partido?.drives || []) for (const j of d.jugadas) todas.push({ ...j, orden: orden++ });
   return todas
-    .filter((j) => Math.abs(j.cambio) >= 0.04 && !j.explicacion.menor)
+    .filter((j) => Math.abs(j.cambio) >= 0.04 && !j.explicacion.menor && j.explicacion.categoria !== 'pausa')
     .sort((a, b) => Math.abs(b.cambio) - Math.abs(a.cambio))
     .slice(0, cuantas)
     .sort((a, b) => a.orden - b.orden);
@@ -316,24 +321,139 @@ export function separarFrases(texto) {
     .filter(Boolean);
 }
 
-// Resumen para el final del partido: titular, las jugadas clave en una línea cada una y el texto para copiar.
+// ---------------------------------------------------------------------------
+// Resumen final: "Así se ganó el partido"
+// ---------------------------------------------------------------------------
+
+const todasLasJugadas = (partido) => (partido?.drives || []).flatMap((d) => d.jugadas);
+
+// Cómo se movió el marcador, visto desde el ganador. Sale solo del marcador real después de cada jugada.
+//   maxAbajo: la mayor desventaja que tuvo el ganador · empates: veces que volvió a quedar igualado después del 0-0
+//   cambiosDeLider: veces que la ventaja pasó de un equipo al otro · definitiva: la jugada con la que el ganador
+//   se puso arriba y ya no soltó la ventaja.
+export function historiaDelMarcador(partido) {
+  const ganaLocal = partido.local.puntos >= partido.visitante.puntos;
+  const jugadas = todasLasJugadas(partido);
+  let maxAbajo = 0; let empates = 0; let cambiosDeLider = 0; let lider = 0; let previa = 0; let definitiva = null;
+  for (const j of jugadas) {
+    const dif = ganaLocal ? j.marcador.local - j.marcador.visitante : j.marcador.visitante - j.marcador.local;
+    if (dif === previa) continue;
+    maxAbajo = Math.max(maxAbajo, -dif);
+    const signo = Math.sign(dif);
+    if (signo !== 0 && lider !== 0 && signo !== lider) cambiosDeLider++;
+    if (signo !== 0) lider = signo;
+    if (dif === 0) empates++;
+    if (dif > 0 && previa <= 0) definitiva = j;
+    else if (dif <= 0) definitiva = null;
+    previa = dif;
+  }
+  return {
+    maxAbajo, empates, cambiosDeLider, definitiva,
+    diferencia: Math.abs(partido.local.puntos - partido.visitante.puntos),
+    tiempoExtra: jugadas.some((j) => j.periodo >= 5),
+  };
+}
+
+const puntosTexto = (n) => (n === 1 ? '1 punto' : `${n} puntos`);
+const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+// Dos o tres frases que cuentan qué tipo de partido fue. Cada una se apoya en un dato del marcador; no se adorna.
+function relatoDelPartido(h, ganador, perdedor) {
+  const g = `los ${ganador.nombre}`;
+  const p = `los ${perdedor.nombre}`;
+  const frases = [];
+  let dijoLaDiferencia = true;
+  if (h.maxAbajo >= 10) {
+    frases.push(`Remontada de ${g}: llegaron a estar ${puntosTexto(h.maxAbajo)} abajo y terminaron ganando por ${h.diferencia}.`);
+  } else if (h.maxAbajo === 0 && h.empates === 0 && h.diferencia >= 14) {
+    frases.push(`${conMayuscula(g)} mandaron de principio a fin: nunca estuvieron abajo en el marcador y ganaron por ${h.diferencia}.`);
+  } else if (h.maxAbajo === 0 && h.empates === 0) {
+    frases.push(h.diferencia <= 8
+      ? `${conMayuscula(g)} nunca estuvieron abajo en el marcador, pero ${p} no los dejaron escaparse: la diferencia final fue de ${puntosTexto(h.diferencia)}.`
+      : `${conMayuscula(g)} nunca estuvieron abajo en el marcador y ganaron por ${h.diferencia}.`);
+  } else if (h.maxAbajo === 0) {
+    frases.push(`${conMayuscula(g)} nunca estuvieron abajo en el marcador, aunque ${p} llegaron a empatarles.`);
+    dijoLaDiferencia = false;
+  } else if (h.diferencia >= 14) {
+    frases.push(`${conMayuscula(g)} llegaron a ir abajo (por ${h.maxAbajo}), pero terminaron ganando con claridad: por ${h.diferencia}.`);
+  } else if (h.cambiosDeLider >= 3) {
+    frases.push(`Partido de ida y vuelta: la ventaja cambió de manos ${h.cambiosDeLider} veces.`);
+    dijoLaDiferencia = false;
+  } else {
+    frases.push(`${conMayuscula(g)} llegaron a ir abajo (por ${h.maxAbajo}) y le dieron la vuelta.`);
+    dijoLaDiferencia = false;
+  }
+  const d = h.definitiva;
+  if (d && (h.maxAbajo > 0 || h.empates > 0)) {
+    const cuando = d.periodo >= 5 ? 'en el tiempo extra'
+      : d.periodo === 4 && d.reloj === '0:00' ? 'en la última jugada del partido'
+        : d.periodo === 4 ? `a ${d.reloj} del final del partido`
+          : `en el ${textoPeriodo(d.periodo)}`;
+    frases.push(`Se pusieron al frente para no soltar más la ventaja ${cuando}.`);
+  }
+  if (h.tiempoExtra && d?.periodo < 5) frases.push('Hizo falta tiempo extra para definirlo.');
+  if (!dijoLaDiferencia) {
+    if (h.diferencia === 3) frases.push('Al final los separó apenas un gol de campo.');
+    else if (h.diferencia < 3) frases.push(`Al final los separó apenas ${puntosTexto(h.diferencia)}.`);
+    else if (h.diferencia <= 8) frases.push(`Terminó a una sola posesión de distancia (${puntosTexto(h.diferencia)}).`);
+    else frases.push(`Ganaron por ${h.diferencia}.`);
+  }
+  return frases;
+}
+
+// De toda la explicación de una jugada, las frases que cuentan su consecuencia: anotación, balón perdido,
+// conversión o fallo de la oportunidad, penal y cómo quedó el marcador. El resto (cuánto vale un touchdown,
+// qué es un penal) ya está en la tarjeta de la jugada.
+const CONSECUENCIAS = [
+  /^¡(Touchdown|Safety|Gol de campo)/, /^Y lo lleva/, /^Pierde el balón/, /cambio de posesión/, /^El balón cambia de manos/,
+  /^Lo recuperan? /, /touchback/, /conversión de 2 puntos/,
+  /la convierten/, /^Fallan en/, /^No (la )?(convierten|alcanza)/, /entregan el balón/, /primer down/,
+  /^(Pero hay b|B)andera amarilla/, /^Son \d+ yardas? a favor/, /^Les cuesta/, /^Retroceden/,
+  /^(Le dan la vuelta al marcador|Abren el marcador|Rompen el empate|Amplían su ventaja|Empatan el partido|Se acercan en el marcador):/,
+];
+const LARGO_MAXIMO_DE_LINEA = 330;
+
+function lineaDeResumen(j) {
+  const frases = separarFrases(j.explicacion.explicacion);
+  // Una exclamación suelta ("¡Intercepción!") no dice nada sola: va con la frase que le sigue.
+  const base = frases[0] && frases[0].length < 28 ? 2 : 1;
+  const elegidas = frases.slice(0, base);
+  let largo = elegidas.join(' ').length;
+  for (const f of frases.slice(base)) {
+    if (!CONSECUENCIAS.some((re) => re.test(f)) || largo + f.length + 1 > LARGO_MAXIMO_DE_LINEA) continue;
+    elegidas.push(f);
+    largo += f.length + 1;
+  }
+  return `${textoPeriodo(j.periodo) || 'Partido'}, ${j.reloj}: ${elegidas.join(' ')}`;
+}
+
+// Resumen para el final del partido: el marcador, un relato corto, las jugadas clave y el texto para copiar.
 export function construirResumen(partido) {
   if (!partido || partido.estado !== 'final') return null;
-  const claves = jugadasClave(partido, 5);
+  let claves = jugadasClave(partido, 5);
   if (!claves.length) return null;
   const empate = partido.local.puntos === partido.visitante.puntos;
   const ganador = partido.local.puntos >= partido.visitante.puntos ? partido.local : partido.visitante;
   const perdedor = ganador === partido.local ? partido.visitante : partido.local;
   const titulo = empate ? 'Así terminó el partido' : 'Así se ganó el partido';
-  const cabecera = `${ganador.nombre} ${ganador.puntos}, ${perdedor.nombre} ${perdedor.puntos}. Las jugadas que más movieron el partido:`;
-  const lineas = claves.map((j) => {
-    const frases = separarFrases(j.explicacion.explicacion);
-    // Una exclamación suelta ("¡Intercepción!") no dice nada sola; y en una anotación interesa llegar hasta el "¡Touchdown...!".
-    let cuantas = 1;
-    if (frases[0] && frases[0].length < 28) cuantas = 2;
-    else if (j.explicacion.anotacion && frases[1] && /^¡/.test(frases[1])) cuantas = 2;
-    return `${textoPeriodo(j.periodo) || 'Partido'}, ${j.reloj}: ${frases.slice(0, cuantas).join(' ')}`;
-  });
-  const texto = `${titulo}\n${cabecera}\n${lineas.map((l) => `• ${l}`).join('\n')}\n\nExplicado por Primer Down`;
-  return { titulo, cabecera, lineas, texto };
+  const marcador = `${ganador.nombre} ${ganador.puntos}, ${perdedor.nombre} ${perdedor.puntos}.`;
+  const historia = historiaDelMarcador(partido);
+  const relato = empate ? [] : relatoDelPartido(historia, ganador, perdedor);
+  // La jugada que dio la ventaja definitiva tiene que estar en la lista, aunque otra haya movido más el pronóstico.
+  const d = historia.definitiva;
+  if (!empate && d && (historia.maxAbajo > 0 || historia.empates > 0) && !claves.some((j) => j.id === d.id)) {
+    const orden = todasLasJugadas(partido).findIndex((j) => j.id === d.id);
+    const menor = claves.reduce((a, b) => (Math.abs(a.cambio) <= Math.abs(b.cambio) ? a : b));
+    claves = [...claves.filter((j) => j !== menor || claves.length < 5), { ...d, orden }].sort((a, b) => a.orden - b.orden);
+  }
+  // Una jugada corriente de una sola frase ("corre y gana 7 yardas") no explica por qué pesó: se omite si quedan 3 o más.
+  const dicePoco = (j) => !j.explicacion.anotacion && !j.explicacion.cambioDePosesion && j.id !== d?.id
+    && separarFrases(j.explicacion.explicacion).length < 2 && Math.abs(j.yardas ?? 0) < 15;
+  const conSustancia = claves.filter((j) => !dicePoco(j));
+  if (conSustancia.length >= 3) claves = conSustancia;
+  const encabezadoLista = 'Las jugadas que más movieron el partido:';
+  const cabecera = [marcador, ...relato].join(' ');
+  const lineas = claves.map(lineaDeResumen);
+  const texto = `${titulo}\n${cabecera}\n\n${encabezadoLista}\n${lineas.map((l) => `• ${l}`).join('\n')}\n\nExplicado por Primer Down`;
+  return { titulo, marcador, relato, cabecera, encabezadoLista, lineas, texto };
 }

@@ -52,7 +52,7 @@ npm test
 node herramientas/verificar-sitio.mjs
 ```
 
-- `npm test` corre 131 pruebas del motor, el modelo, el modo en vivo, la pizarra y las recreaciones 3D, con barridos de todas las jugadas de los 16 partidos guardados. Dos pruebas se saltan solas en una copia del repositorio: usan el corpus completo de 137 partidos (25.387 jugadas), que no se publica por su tamaño.
+- `npm test` corre 139 pruebas del motor, el modelo, el modo en vivo, la pizarra, las recreaciones 3D y el contraste de colores, con barridos de todas las jugadas de los 16 partidos guardados. Dos pruebas se saltan solas en una copia del repositorio: usan el corpus completo de 137 partidos (25.387 jugadas), que no se publica por su tamaño.
 - `verificar-sitio.mjs` necesita Chrome o Edge: abre cada página a 360 px y revisa el contenido, los errores de consola, que nada se desborde, la vista 3D y su respaldo sin WebGL. Lo que depende de ESPN sale como "aviso": ESPN no responde a navegadores sin ventana, así que esa parte hay que mirarla en un navegador normal.
 
 ## Lo que falta comprobar

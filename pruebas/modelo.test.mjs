@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { construirPartido, construirCartelera, contarJugadas, jugadasClave, textoPeriodo, construirResumen, separarFrases } from '../js/modelo.js';
+import { construirPartido, construirCartelera, contarJugadas, jugadasClave, textoPeriodo, construirResumen, separarFrases, historiaDelMarcador } from '../js/modelo.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const leer = (...p) => JSON.parse(readFileSync(path.join(RAIZ, ...p), 'utf8'));
@@ -156,14 +156,20 @@ test('separar frases no corta en las iniciales de los jugadores', () => {
 test('resumen final: cada jugada clave se lee completa', () => {
   const r = construirResumen(construirPartido(jueves));
   assert.equal(r.titulo, 'Así se ganó el partido');
-  assert.equal(r.cabecera, 'Commanders 24, Giants 21. Las jugadas que más movieron el partido:');
+  assert.equal(r.marcador, 'Commanders 24, Giants 21.');
+  assert.equal(r.cabecera, 'Commanders 24, Giants 21. Partido de ida y vuelta: la ventaja cambió de manos 6 veces. Se pusieron al frente para no soltar más la ventaja a 0:57 del final del partido. Al final los separó apenas un gol de campo.');
+  assert.equal(r.encabezadoLista, 'Las jugadas que más movieron el partido:');
   assert.ok(r.lineas.length >= 3 && r.lineas.length <= 5);
   for (const linea of r.lineas) {
     assert.match(linea, /^(\d\.(er|º) cuarto|Tiempo extra), \d+:\d\d: /);
     assert.ok(linea.length > 60, `línea demasiado corta: ${linea}`);
     assert.match(linea, /[.!?]$/);
   }
-  assert.ok(r.lineas.some((l) => /I\. Likely atrapa el pase profundo .* ¡Touchdown de los Giants!$/.test(l)));
+  // Cada línea trae la consecuencia: cómo quedó el marcador o quién se quedó con el balón.
+  assert.ok(r.lineas.some((l) => /I\. Likely atrapa el pase profundo .* ¡Touchdown de los Giants! Le dan la vuelta al marcador: Giants 21, Commanders 17\.$/.test(l)));
+  assert.ok(r.lineas.some((l) => /S\. Diggs .* Le dan la vuelta al marcador: Commanders 24, Giants 21\.$/.test(l)), 'falta la jugada que dio la ventaja definitiva');
+  assert.ok(r.lineas.some((l) => /¡Intercepción! J\. Holland .* ahora atacan los Giants/.test(l)));
+  assert.ok(!r.lineas.some((l) => /Vale 6 puntos|punto extra es bueno/.test(l)), 'el resumen no repite lo que ya explica la tarjeta');
   assert.ok(r.lineas.some((l) => /¡Intercepción! J\. Holland atrapa/.test(l)));
   assert.match(r.texto, /Explicado por Primer Down$/);
   assert.equal(construirResumen(construirPartido(jueves, { hasta: 50 })), null);
@@ -171,6 +177,51 @@ test('resumen final: cada jugada clave se lee completa', () => {
     const resumen = construirResumen(construirPartido(leer('datos', 'partidos', `${item.id}.json`)));
     assert.ok(resumen && resumen.lineas.length >= 1, `sin resumen: ${item.id}`);
     for (const linea of resumen.lineas) assert.ok(linea.length > 40, `línea demasiado corta en ${item.id}: ${linea}`);
+    for (const linea of resumen.lineas) assert.ok(linea.length < 420, `línea demasiado larga en ${item.id}: ${linea}`);
+    assert.ok(resumen.relato.length >= 1 && resumen.relato.length <= 4, `relato raro en ${item.id}`);
+    assert.ok(!resumen.lineas.some((l) => /Arranca el partido|Final del partido/.test(l)), `la patada inicial o el final no son jugadas clave: ${item.id}`);
+    assert.doesNotMatch(resumen.texto, /undefined|NaN|null/);
+  }
+});
+
+test('resumen final: el relato cambia según cómo fue el partido (tres partidos distintos)', () => {
+  const de = (id) => construirPartido(leer('datos', 'partidos', `${id}.json`));
+  // Paliza sin sustos: 49ers 38, Raiders 17.
+  const paliza = de('401873047');
+  assert.deepEqual(construirResumen(paliza).relato, ['Los 49ers mandaron de principio a fin: nunca estuvieron abajo en el marcador y ganaron por 21.']);
+  const hp = historiaDelMarcador(paliza);
+  assert.deepEqual([hp.maxAbajo, hp.empates, hp.cambiosDeLider, hp.diferencia, hp.tiempoExtra], [0, 0, 0, 21, false]);
+  // Empatado hasta la última jugada: Bears 27, Buccaneers 24, con gol de campo en 0:00.
+  const ultima = construirResumen(de('401873050'));
+  assert.deepEqual(ultima.relato, [
+    'Los Bears nunca estuvieron abajo en el marcador, aunque los Buccaneers llegaron a empatarles.',
+    'Se pusieron al frente para no soltar más la ventaja en la última jugada del partido.',
+    'Al final los separó apenas un gol de campo.',
+  ]);
+  assert.match(ultima.lineas.at(-1), /^4\.º cuarto, 0:00: ¡Gol de campo de 38 yardas!.* Rompen el empate: Bears 27, Buccaneers 24\.$/);
+  // Tiempo extra y un punto de diferencia: Saints 23, Browns 22.
+  const extra = de('401873039');
+  assert.deepEqual(construirResumen(extra).relato, [
+    'Partido de ida y vuelta: la ventaja cambió de manos 4 veces.',
+    'Se pusieron al frente para no soltar más la ventaja en el tiempo extra.',
+    'Al final los separó apenas 1 punto.',
+  ]);
+  assert.equal(historiaDelMarcador(extra).tiempoExtra, true);
+  assert.equal(historiaDelMarcador(extra).definitiva.periodo, 5);
+});
+
+test('datos malos de ESPN que no deben mover el partido: patada inicial y marcador en blanco', () => {
+  for (const item of indice.partidos) {
+    const p = construirPartido(leer('datos', 'partidos', `${item.id}.json`));
+    const jugadas = p.drives.flatMap((d) => d.jugadas);
+    assert.equal(jugadas[0].clave, false, `la patada inicial salió como jugada clave en ${item.id}`);
+    assert.ok(Math.abs(jugadas[0].cambio) < 0.1, `la patada inicial movió ${jugadas[0].cambio} en ${item.id}`);
+    // El marcador nunca retrocede a 0-0 una vez que alguien anotó.
+    let anoto = false;
+    for (const j of jugadas) {
+      if (j.marcador.local + j.marcador.visitante > 0) anoto = true;
+      else assert.ok(!anoto, `marcador en blanco en pleno partido: ${item.id}, jugada ${j.id}`);
+    }
   }
 });
 

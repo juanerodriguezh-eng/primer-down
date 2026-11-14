@@ -154,7 +154,7 @@ a { color: var(--enlace); }
 .tarjeta-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
 
 .fila-equipo, .marcador-equipo { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; }
-.franja { flex: none; width: 0.4rem; height: 1.9rem; border-radius: 3px; background: var(--borde); }
+.franja { flex: none; width: 0.4rem; height: 1.9rem; border-radius: 3px; background: var(--borde); box-shadow: 0 0 0 1px var(--texto-suave); }
 .fila-equipo .nombre { font-weight: 700; }
 .fila-equipo .detalle { color: var(--texto-suave); font-size: 0.875rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fila-equipo .puntos { font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
@@ -233,6 +233,7 @@ a { color: var(--enlace); }
 .resumen { background: var(--superficie); border: 1px solid var(--acento); border-radius: var(--radio); padding: 0.85rem; }
 .resumen[hidden] { display: none; }
 .resumen p { margin-top: 0.35rem; color: var(--texto-suave); }
+.resumen .resumen-relato { color: var(--texto); font-size: 1.02rem; }
 .resumen-lista { margin: 0.6rem 0 0.8rem; padding-left: 1.25rem; }
 .resumen-lista li + li { margin-top: 0.45rem; }
 

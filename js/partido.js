@@ -127,7 +127,7 @@ function pintarResumen(p) {
     }
     setTimeout(() => { copiar.textContent = 'Copiar resumen'; }, 2500);
   });
-  zona.append(crear('h2', {}, resumen.titulo), crear('p', {}, resumen.cabecera), crear('ol', { class: 'resumen-lista' }, resumen.lineas.map((l) => crear('li', {}, l))), copiar);
+  zona.append(crear('h2', {}, resumen.titulo), crear('p', { class: 'resumen-relato' }, resumen.cabecera), crear('p', {}, resumen.encabezadoLista), crear('ol', { class: 'resumen-lista' }, resumen.lineas.map((l) => crear('li', {}, l))), copiar);
 }
 
 // ---------------------------------------------------------------------------

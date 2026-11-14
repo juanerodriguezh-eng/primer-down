@@ -257,7 +257,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 
 # Encargo 2 (`ENCARGO-2.md`)
 
-**Estado rápido:** ver la última anotación de esta sección. Orden del encargo: 1) `npm test` · 2) modo en vivo · 3) vista 3D · 4) README · 5) calidad 360 px · 6) resumen final.
+**Estado rápido (sáb 14, 04:30):** los 6 puntos están TERMINADOS y confirmados en git, sin push; el cierre está al final de esta sección. Orden del encargo: 1) `npm test` · 2) modo en vivo · 3) vista 3D · 4) README · 5) calidad 360 px · 6) resumen final.
 
 ### Turno 4 (viernes 13, 20:49) — arranque
 - La sección "Encargo 2" no existía: empiezo por el punto 1.
@@ -357,3 +357,55 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Me corregí:** dos veces más un script de edición mío se comió las barras invertidas de una expresión regular (una dejó caracteres de control dentro del verificador; lo delató `node --check`). Desde ahora edito expresiones regulares con la herramienta de edición directa, no con scripts pasados por el shell.
 - **No comprobado:** lector de pantalla real (solo revisé atributos) y el orden de tabulación a mano.
 - **Sigue:** 6) texto "Así se ganó el partido" con 3 partidos distintos.
+
+### Punto 6, texto "Así se ganó el partido" — HECHO Y VERIFICADO (sáb 14, 04:25)
+- Leí el resumen de los 16 partidos guardados con una herramienta nueva, `node herramientas/ver-resumenes.mjs [id ...]`, y lo que encontré sonaba a lista de máquina: la patada inicial salía como "jugada clave" en 9 de los primeros 11 partidos que leí, había líneas que no decían por qué pesaron ("corre por el centro y gana 5 yardas", "la jugada no termina ahí") y ninguna frase contaba cómo fue el partido.
+- **Qué cambió en `js/modelo.js`:**
+  - **Relato de apertura** (`historiaDelMarcador` y `relatoDelPartido`, puras): de 1 a 3 frases sacadas solo del marcador real jugada a jugada (mayor desventaja del ganador, empates, cambios de ventaja, la jugada que dio la ventaja definitiva, tiempo extra). Ejemplos reales: "Los 49ers mandaron de principio a fin: nunca estuvieron abajo en el marcador y ganaron por 21." · "Los Bears nunca estuvieron abajo en el marcador, aunque los Buccaneers llegaron a empatarles. Se pusieron al frente para no soltar más la ventaja en la última jugada del partido. Al final los separó apenas un gol de campo." · "Partido de ida y vuelta: la ventaja cambió de manos 4 veces. Se pusieron al frente para no soltar más la ventaja en el tiempo extra. Al final los separó apenas 1 punto."
+  - **Cada jugada clave trae su consecuencia:** además de la primera frase, se agregan las que dicen qué provocó (touchdown, balón perdido y quién lo recuperó, oportunidad convertida, penal y yardas, cómo quedó el marcador). Se dejan fuera las que ya explica la tarjeta ("Vale 6 puntos", qué es cada penal). Tope de 330 caracteres por línea.
+  - La jugada que dio la ventaja definitiva siempre está en la lista. Una jugada corriente de una sola frase se omite si quedan 3 o más. El "Final del partido" ya no cuenta como jugada.
+- **Dos datos malos de ESPN corregidos en el origen (afectaban también a la v1 publicada):**
+  1. La probabilidad de ganar arrancaba en 50 % y el primer dato real es el pronóstico previo (por ejemplo 80 %): la patada inicial "movía" el partido 20 o 30 puntos y salía marcada como **jugada clave** en el feed. Ahora se parte del primer valor que entrega ESPN.
+  2. En 49ers 38, Raiders 17 una pausa del 4.º cuarto llega con marcador **0-0**. El marcador de esa tarjeta se iba a cero y el resumen creía que los 49ers habían "recuperado la ventaja" a 3:57 del final. Ahora un marcador en blanco en pleno partido se ignora.
+- **Pantalla:** el relato va en texto normal arriba de la lista (`js/partido.js`, `css/estilos.css`). De paso: la franja de color de equipos muy oscuros (Bears) no se veía en modo oscuro; ahora lleva un borde fino.
+- **Pruebas nuevas en `pruebas/modelo.test.mjs`:** el relato de tres partidos distintos (paliza, definido en la última jugada, tiempo extra) con su texto exacto; ninguna línea de más de 420 caracteres ni con "undefined"; la patada inicial nunca es jugada clave; el marcador nunca vuelve a 0-0. **Pasaron al primer intento.**
+- **Verificación:** `npm test` → `tests 139 · pass 139 · fail 0`. `node herramientas/verificar-sitio.mjs` → `0 falla(s), 5 aviso(s)`. Captura mirada a ojo: `herramientas/capturas/resumen-final.png`.
+- **Me corregí 3 veces leyendo los 16 textos:** "Partido de ida y vuelta" junto a "Ganaron por 23" (Chiefs 35, Jets 12: ahora dice que llegaron a ir abajo y ganaron con claridad); "empezaron abajo" podía ser falso (ahora "llegaron a ir abajo"); y "a 0:00 del final del partido" (ahora "en la última jugada del partido").
+- **Limitación que queda:** las frases de cada jugada siguen siendo las del motor; en una jugada con fumble se lee "forzado por N. Bonitto y lo recupera N. Bonitto". Es correcto, pero no elegante.
+
+---
+
+## CIERRE DEL ENCARGO 2 (sábado 14 nov, 04:30)
+
+### 1. Resumen
+1. Los 6 puntos del encargo están hechos y confirmados en git (rama local; **sin push**, como pide el encargo): `npm test`, modo en vivo, vista 3D, README, calidad en claro y oscuro y el texto del resumen final.
+2. **Modo en vivo listo para el domingo 15:** sondeo probado con reloj falso, partido en curso simulado en tres formas de `drives.current`, fallo de red con mensaje claro y paso de "en vivo" a "final" con resumen.
+3. **Vista 3D con Three.js:** cancha, 22 jugadores articulados con dorsales reales de ESPN, tres cámaras, repetición, touchdown con confeti, bandera de penal, jugadas clásicas en 3D y respaldo a la pizarra 2D sin WebGL.
+4. **139 pruebas pasan** y el verificador abre 24 páginas a 360 px sin fallas (5 avisos de siempre: ESPN responde 403 al navegador sin ventana).
+5. Lo publicado en GitHub Pages sigue siendo la versión anterior hasta que una persona haga `git push`.
+
+### 2. Lo que NO pude comprobar (hay que mirarlo con ojos y con un partido real)
+- **Un partido en vivo de verdad** (domingo 15): si el summary en vivo trae `winprobability`, `boxscore.players` y el `end` de la última jugada. El código tolera que falten; las dudas están anotadas en el punto 2.
+- **La lectura de ESPN desde el sitio publicado** en un navegador normal (portada y partido). El encargo dice que desde PowerShell respondió 200 con CORS abierto.
+- **El movimiento y la fluidez de la vista 3D** en un celular real: solo vi cuadros congelados en el navegador sin ventana.
+- **Lector de pantalla y orden de tabulación:** revisé atributos, no los probé con un lector.
+
+### 3. Próximos pasos recomendados
+1. Revisar y hacer `git push` de `primer-down/` (13 confirmaciones nuevas desde la v1).
+2. Abrir en el celular `partido.html?id=401873052&modo=repeticion&jugada=87` y tocar "Ver la jugada en 3D"; después `pizarra.html` y "Ver con jugadores en 3D".
+3. El domingo, abrir un partido en vivo y comparar con la demostración `partido.html?id=401873052&fuente=simulado&desde=150&paso=3&cada=2`.
+
+### 4. Para `PROMPTS-FABLE.md`
+**Salió bien a la primera**
+- El modo en vivo como módulo puro (`js/vivo.js`) con reloj falso: permitió probar sin partido real lo que el encargo decía que no se podía probar.
+- Separar la línea de tiempo de la jugada (`js/jugada3d.js`) del render: el 3D se escribió encima de algo ya probado con barridos de 2.982 jugadas.
+- Las pruebas del relato del resumen final: 139 de 139 en el primer intento.
+- El respaldo a la pizarra 2D sin WebGL.
+
+**Donde tuve que corregirme, y por qué**
+- **Los barridos sobre datos reales encontraron lo que yo no imaginé:** jugadores que se teletransportaban, un final de jugada en blanco al cierre de un cuarto, y en este turno un marcador 0-0 en pleno 4.º cuarto y un pronóstico inicial que convertía la patada de salida en "jugada clave". Los dos últimos estaban en la v1 publicada.
+- **Las capturas encontraron lo que las pruebas no ven:** jugadores de 10 px a 360 px (me aparté del FOV que pedía el encargo y lo dejé anotado), un poste tapando la repetición, y hoy las X rosadas casi invisibles sobre el pasto del modo claro.
+- **La prueba de contraste encontró 3 defectos** en una paleta que yo había dado por buena sin mirarla (el sello "En vivo" tenía 3,05:1).
+- **Leer el texto encontró lo que ni pruebas ni capturas ven:** el resumen pasaba todas las pruebas y aun así sonaba a máquina y decía una cosa falsa ("ida y vuelta" en una paliza).
+- **Mi punto débil repetido:** cuatro veces un script de edición pasado por el shell se comió las barras invertidas de una expresión regular. Las cuatro las delató una comprobación (`node --check`, cobertura en 0, una prueba), nunca mi lectura.
+- **Proceso:** tres turnos se cortaron con trabajo sin anotar (`js/vista3d.js` completo, la prueba de contraste). Cada turno siguiente empezó verificando antes de tocar, y eso alcanzó para retomar sin perder nada.
