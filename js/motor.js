@@ -617,8 +617,14 @@ function fraseBalonSuelto(h, s, ctx, jugada) {
   if (recupera) {
     const perdida = jugada.isTurnover === true || !s.mismoEquipo;
     if (perdida) {
+      // Si el mismo defensor provoca el balón suelto y lo recupera, se dice una sola vez su nombre.
+      const quienFuerza = b.forzadoPor ? nombreJugador(b.forzadoPor.split(/[,;]/)[0]) : '';
+      const quienRecupera = nombreJugador(b.jugadorRecupera);
+      const elMismo = !!quienFuerza && quienFuerza.toLowerCase() === String(quienRecupera).toLowerCase();
       return {
-        texto: `Pierde el balón (fumble)${forzado} y lo recupera ${nombreJugador(b.jugadorRecupera)} para ${los(recupera)}: cambio de posesión`,
+        texto: elMismo
+          ? `${quienFuerza} le quita el balón (fumble) y él mismo lo recupera para ${los(recupera)}: cambio de posesión`
+          : `Pierde el balón (fumble)${forzado} y lo recupera ${quienRecupera} para ${los(recupera)}: cambio de posesión`,
         perdida: true,
         recupera,
       };
