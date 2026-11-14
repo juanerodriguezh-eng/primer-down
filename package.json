@@ -1,0 +1,11 @@
+{
+  "name": "primer-down",
+  "version": "0.1.0",
+  "private": true,
+  "description": "La NFL explicada en español mientras la ves. Sitio estático, sin dependencias.",
+  "type": "module",
+  "scripts": {
+    "start": "node herramientas/servidor.mjs",
+    "test": "node --test \"pruebas/*.test.mjs\""
+  }
+}

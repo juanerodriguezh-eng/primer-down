@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glosario de fútbol americano en español · Primer Down</title>
+  <meta name="description" content="Los términos del fútbol americano explicados en español simple, cada uno con un ejemplo.">
+  <meta name="theme-color" content="#0b1220">
+  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="pagina-glosario">
+  <a class="saltar" href="#lista">Saltar a los términos</a>
+  <header class="barra-superior">
+    <a class="marca" href="index.html">Primer Down</a>
+    <span class="barra-enlaces"><a class="volver" href="index.html">Partidos</a><a class="volver" href="pizarra.html">Pizarra</a><button type="button" class="boton-tema" data-tema-boton></button></span>
+  </header>
+
+  <main class="contenedor">
+    <h1>Glosario</h1>
+    <p class="nota" id="cuenta">Los términos del fútbol americano, explicados sin dar nada por sabido.</p>
+    <input id="buscador" class="buscador" type="search" placeholder="Buscar un término…" aria-label="Buscar en el glosario">
+    <div id="lista" class="glosario-lista"></div>
+  </main>
+
+  <footer class="pie">
+    <p>Proyecto independiente. No tiene relación con la NFL ni con sus equipos.</p>
+  </footer>
+
+  <script type="module" src="js/glosario-pagina.js"></script>
+</body>
+</html>

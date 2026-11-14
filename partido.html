@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Partido · Primer Down</title>
+  <meta name="description" content="Marcador, situación explicada y cada jugada del partido en español simple.">
+  <meta name="theme-color" content="#0b1220">
+  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="pagina-partido">
+  <a class="saltar" href="#feed">Saltar a las jugadas</a>
+  <header class="barra-superior">
+    <a class="marca" href="index.html">Primer Down</a>
+    <span class="barra-enlaces"><a class="volver" href="index.html">Partidos</a><a class="volver" href="pizarra.html">Pizarra</a><button type="button" class="boton-tema" data-tema-boton></button></span>
+  </header>
+
+  <main class="contenedor">
+    <div id="avisos"></div>
+    <section id="marcador" class="marcador" aria-label="Marcador" aria-live="polite">
+      <p class="aviso aviso-info" role="status">Cargando el partido…</p>
+    </section>
+    <div id="controles"></div>
+    <section id="situacion" class="situacion" aria-live="polite"></section>
+    <section id="resumen" class="resumen" hidden></section>
+    <h2 class="titulo-feed">Jugada por jugada</h2>
+    <section id="feed" class="feed" aria-label="Jugadas del partido, la más reciente arriba"></section>
+  </main>
+
+  <footer class="pie">
+    <p>Proyecto independiente. No tiene relación con la NFL ni con sus equipos. Datos de la API pública de ESPN.</p>
+  </footer>
+
+  <noscript><p class="aviso aviso-error">Primer Down necesita JavaScript para mostrar el partido.</p></noscript>
+  <script type="module" src="js/partido.js"></script>
+</body>
+</html>

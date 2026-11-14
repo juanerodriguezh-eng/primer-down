@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Marco de prueba de 360 px</title>
+  <style>
+    body { margin: 0; background: #555; font: 14px system-ui, sans-serif; color: #fff; }
+    iframe { display: block; width: 360px; height: 1600px; border: 0; background: #fff; }
+  </style>
+</head>
+<body>
+  <!-- Herramienta de verificación: muestra una página del sitio en un marco de 360 px de ancho,
+       como un celular chico, y mide si el contenido se desborda hacia los lados.
+       Uso: /herramientas/marco.html?ruta=/partido.html%3Fid%3D401873052%26modo%3Drepeticion -->
+  <iframe id="marco" title="Página a 360 px"></iframe>
+  <p id="medida">midiendo…</p>
+  <script>
+    const ruta = new URLSearchParams(location.search).get('ruta') || '/index.html';
+    const marco = document.getElementById('marco');
+    const medida = document.getElementById('medida');
+    marco.src = ruta.startsWith('/') ? ruta : '/index.html';
+    marco.addEventListener('load', () => {
+      const medir = () => {
+        const d = marco.contentDocument.documentElement;
+        const anchos = [...marco.contentDocument.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > d.clientWidth + 1);
+        medida.textContent = `ancho-contenido=${d.scrollWidth} ancho-ventana=${d.clientWidth} se-salen=${anchos.length}`
+          + (anchos.length ? ` primero=${anchos[0].tagName.toLowerCase()}.${anchos[0].className}` : '');
+      };
+      medir();
+      setInterval(medir, 400);
+    });
+  </script>
+</body>
+</html>

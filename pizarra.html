@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La Pizarra: jugadas clásicas del fútbol americano · Primer Down</title>
+  <meta name="description" content="Cinco jugadas clásicas del fútbol americano explicadas paso a paso en español, con X y O animadas.">
+  <meta name="theme-color" content="#0b1220">
+  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="pagina-pizarra">
+  <a class="saltar" href="#clasicas">Saltar a las jugadas</a>
+  <header class="barra-superior">
+    <a class="marca" href="index.html">Primer Down</a>
+    <span class="barra-enlaces"><a class="volver" href="index.html">Partidos</a><a class="volver" href="glosario.html">Glosario</a><button type="button" class="boton-tema" data-tema-boton></button></span>
+  </header>
+
+  <main class="contenedor">
+    <h1>La Pizarra</h1>
+    <p class="nota">Cinco jugadas clásicas, paso a paso. Las <strong>O</strong> son el equipo que ataca y las <strong>X</strong>, el que defiende, igual que en la pizarra de un entrenador. Toca “Siguiente paso” y mira cómo se mueven.</p>
+    <nav aria-label="Jugadas clásicas">
+      <ul id="indice-clasicas" class="clasica-indice"></ul>
+    </nav>
+    <div id="clasicas"></div>
+    <p class="nota">¿Quieres ver jugadas reales? En cada jugada de un partido hay un botón “Ver en la pizarra” que muestra cómo se movió el balón. <a href="index.html#repeticion">Prueba con un partido ya jugado</a>.</p>
+  </main>
+
+  <footer class="pie">
+    <p>Proyecto independiente. No tiene relación con la NFL ni con sus equipos. Los dibujos son esquemas y no están a escala.</p>
+  </footer>
+
+  <noscript><p class="aviso aviso-error">La Pizarra necesita JavaScript para animar las jugadas.</p></noscript>
+  <script type="module" src="js/pizarra-pagina.js"></script>
+</body>
+</html>

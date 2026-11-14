@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Primer Down: la NFL explicada en español mientras la ves</title>
+  <meta name="description" content="Sigue un partido de la NFL en vivo y entiende cada jugada: qué pasó y por qué, en español simple.">
+  <meta name="theme-color" content="#0b1220">
+  <script>try { if (localStorage.getItem('tema') === 'claro') document.documentElement.dataset.tema = 'claro'; } catch (e) {}</script>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="pagina-portada">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="portada-cabecera">
+    <button type="button" class="boton-tema" data-tema-boton></button>
+    <p class="marca">Primer Down</p>
+    <h1>La NFL explicada en español mientras la ves</h1>
+    <p class="lema">Abre un partido y te contamos cada jugada en palabras simples: qué pasó y por qué. Sin registrarte y gratis.</p>
+    <p class="portada-acciones">
+      <a id="boton-demo" class="boton boton-principal" href="#repeticion">Probar con un partido ya jugado</a>
+      <a class="boton boton-suave" href="pizarra.html">La Pizarra: jugadas clásicas</a>
+      <a class="boton boton-suave" href="glosario.html">Ver el glosario</a>
+    </p>
+  </header>
+
+  <main id="contenido" class="contenedor">
+    <section aria-labelledby="titulo-semana">
+      <h2 id="titulo-semana">Partidos de la semana</h2>
+      <p class="nota">Los partidos en vivo aparecen arriba. Las horas están en tu hora local.</p>
+      <div id="semana" class="rejilla" aria-live="polite">
+        <p class="aviso aviso-info" role="status">Cargando los partidos de la semana…</p>
+      </div>
+    </section>
+
+    <section id="repeticion" aria-labelledby="titulo-repeticion">
+      <h2 id="titulo-repeticion">Modo repetición</h2>
+      <p class="nota">Partidos que ya se jugaron. Los reproducimos jugada por jugada, como si fueran en vivo, para que practiques cuando quieras.</p>
+      <div id="guardados" class="rejilla">
+        <p class="aviso aviso-info" role="status">Cargando los partidos guardados…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p>Proyecto independiente hecho por un aficionado. No tiene relación con la NFL ni con sus equipos.</p>
+    <p>Datos de la API pública de ESPN. Las explicaciones las genera un motor de reglas, sin inteligencia artificial en vivo.</p>
+  </footer>
+
+  <noscript><p class="aviso aviso-error">Primer Down necesita JavaScript para mostrar los partidos.</p></noscript>
+  <script type="module" src="js/portada.js"></script>
+</body>
+</html>

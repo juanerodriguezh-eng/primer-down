@@ -1,0 +1,389 @@
+{
+ "generado": "2026-11-13T12:22:24.280Z",
+ "partidos": [
+  {
+   "id": "401873052",
+   "fecha": "2026-11-13T01:15Z",
+   "semana": 10,
+   "local": {
+    "id": "19",
+    "abrev": "NYG",
+    "nombre": "Giants",
+    "ciudad": "New York",
+    "puntos": 21,
+    "color": "#003c7f",
+    "gano": false
+   },
+   "visitante": {
+    "id": "28",
+    "abrev": "WSH",
+    "nombre": "Commanders",
+    "ciudad": "Washington",
+    "puntos": 24,
+    "color": "#5a1414",
+    "gano": true
+   },
+   "jugadas": 188
+  },
+  {
+   "id": "401873051",
+   "fecha": "2026-11-10T01:15Z",
+   "semana": 9,
+   "local": {
+    "id": "16",
+    "abrev": "MIN",
+    "nombre": "Vikings",
+    "ciudad": "Minnesota",
+    "puntos": 6,
+    "color": "#4f2683",
+    "gano": false
+   },
+   "visitante": {
+    "id": "2",
+    "abrev": "BUF",
+    "nombre": "Bills",
+    "ciudad": "Buffalo",
+    "puntos": 23,
+    "color": "#00338d",
+    "gano": true
+   },
+   "jugadas": 187
+  },
+  {
+   "id": "401873050",
+   "fecha": "2026-11-09T01:20Z",
+   "semana": 9,
+   "local": {
+    "id": "3",
+    "abrev": "CHI",
+    "nombre": "Bears",
+    "ciudad": "Chicago",
+    "puntos": 27,
+    "color": "#0b1c3a",
+    "gano": true
+   },
+   "visitante": {
+    "id": "27",
+    "abrev": "TB",
+    "nombre": "Buccaneers",
+    "ciudad": "Tampa Bay",
+    "puntos": 24,
+    "color": "#bd1c36",
+    "gano": false
+   },
+   "jugadas": 188
+  },
+  {
+   "id": "401873049",
+   "fecha": "2026-11-08T21:25Z",
+   "semana": 9,
+   "local": {
+    "id": "17",
+    "abrev": "NE",
+    "nombre": "Patriots",
+    "ciudad": "New England",
+    "puntos": 27,
+    "color": "#002a5c",
+    "gano": false
+   },
+   "visitante": {
+    "id": "9",
+    "abrev": "GB",
+    "nombre": "Packers",
+    "ciudad": "Green Bay",
+    "puntos": 45,
+    "color": "#204e32",
+    "gano": true
+   },
+   "jugadas": 185
+  },
+  {
+   "id": "401873048",
+   "fecha": "2026-11-08T21:25Z",
+   "semana": 9,
+   "local": {
+    "id": "26",
+    "abrev": "SEA",
+    "nombre": "Seahawks",
+    "ciudad": "Seattle",
+    "puntos": 17,
+    "color": "#002a5c",
+    "gano": true
+   },
+   "visitante": {
+    "id": "22",
+    "abrev": "ARI",
+    "nombre": "Cardinals",
+    "ciudad": "Arizona",
+    "puntos": 3,
+    "color": "#a40227",
+    "gano": false
+   },
+   "jugadas": 168
+  },
+  {
+   "id": "401873047",
+   "fecha": "2026-11-08T21:25Z",
+   "semana": 9,
+   "local": {
+    "id": "25",
+    "abrev": "SF",
+    "nombre": "49ers",
+    "ciudad": "San Francisco",
+    "puntos": 38,
+    "color": "#aa0000",
+    "gano": true
+   },
+   "visitante": {
+    "id": "13",
+    "abrev": "LV",
+    "nombre": "Raiders",
+    "ciudad": "Las Vegas",
+    "puntos": 17,
+    "color": "#000000",
+    "gano": false
+   },
+   "jugadas": 162
+  },
+  {
+   "id": "401873046",
+   "fecha": "2026-11-08T21:05Z",
+   "semana": 9,
+   "local": {
+    "id": "24",
+    "abrev": "LAC",
+    "nombre": "Chargers",
+    "ciudad": "Los Angeles",
+    "puntos": 22,
+    "color": "#0080c6",
+    "gano": false
+   },
+   "visitante": {
+    "id": "34",
+    "abrev": "HOU",
+    "nombre": "Texans",
+    "ciudad": "Houston",
+    "puntos": 44,
+    "color": "#021018",
+    "gano": true
+   },
+   "jugadas": 204
+  },
+  {
+   "id": "401873045",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "12",
+    "abrev": "KC",
+    "nombre": "Chiefs",
+    "ciudad": "Kansas City",
+    "puntos": 35,
+    "color": "#e31837",
+    "gano": true
+   },
+   "visitante": {
+    "id": "20",
+    "abrev": "NYJ",
+    "nombre": "Jets",
+    "ciudad": "New York",
+    "puntos": 12,
+    "color": "#115740",
+    "gano": false
+   },
+   "jugadas": 185
+  },
+  {
+   "id": "401873044",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "21",
+    "abrev": "PHI",
+    "nombre": "Eagles",
+    "ciudad": "Philadelphia",
+    "puntos": 11,
+    "color": "#06424d",
+    "gano": false
+   },
+   "visitante": {
+    "id": "19",
+    "abrev": "NYG",
+    "nombre": "Giants",
+    "ciudad": "New York",
+    "puntos": 19,
+    "color": "#003c7f",
+    "gano": true
+   },
+   "jugadas": 201
+  },
+  {
+   "id": "401873043",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "28",
+    "abrev": "WSH",
+    "nombre": "Commanders",
+    "ciudad": "Washington",
+    "puntos": 13,
+    "color": "#5a1414",
+    "gano": false
+   },
+   "visitante": {
+    "id": "14",
+    "abrev": "LAR",
+    "nombre": "Rams",
+    "ciudad": "Los Angeles",
+    "puntos": 20,
+    "color": "#003594",
+    "gano": true
+   },
+   "jugadas": 191
+  },
+  {
+   "id": "401873042",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "15",
+    "abrev": "MIA",
+    "nombre": "Dolphins",
+    "ciudad": "Miami",
+    "puntos": 9,
+    "color": "#008e97",
+    "gano": false
+   },
+   "visitante": {
+    "id": "8",
+    "abrev": "DET",
+    "nombre": "Lions",
+    "ciudad": "Detroit",
+    "puntos": 19,
+    "color": "#0076b6",
+    "gano": true
+   },
+   "jugadas": 169
+  },
+  {
+   "id": "401873041",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "29",
+    "abrev": "CAR",
+    "nombre": "Panthers",
+    "ciudad": "Carolina",
+    "puntos": 21,
+    "color": "#0085ca",
+    "gano": false
+   },
+   "visitante": {
+    "id": "7",
+    "abrev": "DEN",
+    "nombre": "Broncos",
+    "ciudad": "Denver",
+    "puntos": 26,
+    "color": "#0a2343",
+    "gano": true
+   },
+   "jugadas": 194
+  },
+  {
+   "id": "401873040",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "11",
+    "abrev": "IND",
+    "nombre": "Colts",
+    "ciudad": "Indianapolis",
+    "puntos": 23,
+    "color": "#003b75",
+    "gano": false
+   },
+   "visitante": {
+    "id": "6",
+    "abrev": "DAL",
+    "nombre": "Cowboys",
+    "ciudad": "Dallas",
+    "puntos": 27,
+    "color": "#002a5c",
+    "gano": true
+   },
+   "jugadas": 204
+  },
+  {
+   "id": "401873039",
+   "fecha": "2026-11-08T18:00Z",
+   "semana": 9,
+   "local": {
+    "id": "18",
+    "abrev": "NO",
+    "nombre": "Saints",
+    "ciudad": "New Orleans",
+    "puntos": 23,
+    "color": "#d3bc8d",
+    "gano": true
+   },
+   "visitante": {
+    "id": "5",
+    "abrev": "CLE",
+    "nombre": "Browns",
+    "ciudad": "Cleveland",
+    "puntos": 22,
+    "color": "#472a08",
+    "gano": false
+   },
+   "jugadas": 217
+  },
+  {
+   "id": "401873038",
+   "fecha": "2026-11-08T14:30Z",
+   "semana": 9,
+   "local": {
+    "id": "1",
+    "abrev": "ATL",
+    "nombre": "Falcons",
+    "ciudad": "Atlanta",
+    "puntos": 17,
+    "color": "#a71930",
+    "gano": false
+   },
+   "visitante": {
+    "id": "4",
+    "abrev": "CIN",
+    "nombre": "Bengals",
+    "ciudad": "Cincinnati",
+    "puntos": 34,
+    "color": "#fb4f14",
+    "gano": true
+   },
+   "jugadas": 173
+  },
+  {
+   "id": "401873037",
+   "fecha": "2026-11-06T01:15Z",
+   "semana": 9,
+   "local": {
+    "id": "33",
+    "abrev": "BAL",
+    "nombre": "Ravens",
+    "ciudad": "Baltimore",
+    "puntos": 10,
+    "color": "#29126f",
+    "gano": false
+   },
+   "visitante": {
+    "id": "30",
+    "abrev": "JAX",
+    "nombre": "Jaguars",
+    "ciudad": "Jacksonville",
+    "puntos": 33,
+    "color": "#007487",
+    "gano": true
+   },
+   "jugadas": 166
+  }
+ ]
+}

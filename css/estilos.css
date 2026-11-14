@@ -1,0 +1,383 @@
+/* Primer Down — un solo CSS, pensado primero para el celular (360 px) y de noche (modo oscuro por defecto). */
+
+:root {
+  color-scheme: dark;
+  --fondo: #0b1220;
+  --superficie: #141d30;
+  --superficie-2: #1b2640;
+  --borde: #2a3756;
+  --texto: #eef2fa;
+  --texto-suave: #a9b6cf;
+  --acento: #3ddc84;
+  --acento-texto: #06210f;
+  --enlace: #8fc4ff;
+  --pase: #6db3ff;
+  --carrera: #ffab57;
+  --patada: #c3a0ff;
+  --penal: #ffd43b;
+  --perdida: #ff7a7a;
+  --anotacion: #3ddc84;
+  --pausa: #93a1bb;
+  --vivo: #ff5a5f;
+  --pasto: #1f6b3f;
+  --pasto-linea: rgba(255, 255, 255, 0.45);
+  --radio: 14px;
+  --sombra: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 6px 18px rgba(0, 0, 0, 0.25);
+  --fuente: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+:root[data-tema="claro"] {
+    color-scheme: light;
+    --fondo: #f3f5f9;
+    --superficie: #ffffff;
+    --superficie-2: #eef1f7;
+    --borde: #d3d9e6;
+    --texto: #131a2a;
+    --texto-suave: #4d5a73;
+    --acento: #0f7a3d;
+    --acento-texto: #ffffff;
+    --enlace: #0b5cad;
+    --pase: #0b5cad;
+    --carrera: #a85400;
+    --patada: #6a3fc0;
+    --penal: #8a6a00;
+    --perdida: #b3261e;
+    --anotacion: #0f7a3d;
+    --pausa: #5b667c;
+    --vivo: #c62828;
+    --pasto: #2e8b57;
+    --sombra: 0 4px 14px rgba(20, 30, 60, 0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 1rem;
+  line-height: 1.5;
+  padding-bottom: 5rem; /* lugar para el botón fijo del glosario */
+}
+
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 1.6rem; line-height: 1.2; }
+h2 { font-size: 1.2rem; line-height: 1.25; }
+h3 { font-size: 1rem; }
+a { color: var(--enlace); }
+
+:focus-visible { outline: 3px solid var(--penal); outline-offset: 2px; border-radius: 6px; }
+
+.solo-lectores {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+.saltar {
+  position: absolute; left: 0.5rem; top: -4rem; z-index: 20;
+  background: var(--acento); color: var(--acento-texto); padding: 0.6rem 0.9rem; border-radius: 8px; font-weight: 700;
+}
+.saltar:focus { top: 0.5rem; }
+
+.contenedor { max-width: 46rem; margin: 0 auto; padding: 0 0.875rem; }
+.contenedor > section, .contenedor > div:not(:empty) { margin-top: 1rem; }
+
+.nota { color: var(--texto-suave); font-size: 0.925rem; margin-top: 0.25rem; }
+.vacio { color: var(--texto-suave); padding: 1rem 0; }
+
+/* ---------- Botones y sellos ---------- */
+
+.boton {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2.75rem; padding: 0.5rem 0.95rem;
+  border: 1px solid var(--borde); border-radius: 999px;
+  background: var(--superficie-2); color: var(--texto);
+  font: inherit; font-weight: 650; text-decoration: none; cursor: pointer;
+}
+.boton:hover { border-color: var(--texto-suave); }
+.boton:disabled { opacity: 0.45; cursor: not-allowed; }
+.boton-principal { background: var(--acento); border-color: var(--acento); color: var(--acento-texto); }
+.boton-suave { background: transparent; }
+
+.sello {
+  display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px;
+  background: var(--superficie-2); color: var(--texto-suave);
+  font-size: 0.82rem; font-weight: 700; letter-spacing: 0.01em;
+}
+.sello-vivo { background: var(--vivo); color: #fff; }
+.sello-vivo::before { content: ""; display: inline-block; width: 0.5rem; height: 0.5rem; margin-right: 0.4rem; border-radius: 50%; background: #fff; animation: latido 1.4s ease-in-out infinite; }
+.sello-final { color: var(--texto); }
+.sello-repeticion { background: color-mix(in srgb, var(--patada) 22%, var(--superficie-2)); color: var(--texto); }
+
+@keyframes latido { 50% { opacity: 0.25; } }
+
+.aviso {
+  padding: 0.75rem 0.9rem; border-radius: var(--radio);
+  background: var(--superficie); border: 1px solid var(--borde); color: var(--texto-suave); font-size: 0.95rem;
+}
+.aviso + .aviso { margin-top: 0.5rem; }
+.aviso-error { border-color: var(--perdida); color: var(--texto); }
+
+/* ---------- Cabeceras ---------- */
+
+.barra-superior {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem;
+  max-width: 46rem; margin: 0 auto; padding: 0.75rem 0.875rem;
+}
+.marca { white-space: nowrap; color: var(--acento); font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em; text-decoration: none; text-transform: uppercase; }
+.volver { font-size: 0.95rem; white-space: nowrap; }
+.barra-enlaces { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem; }
+.boton-tema { min-height: 2.4rem; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid var(--borde); background: transparent; color: var(--texto-suave); font: inherit; font-size: 0.86rem; white-space: nowrap; cursor: pointer; }
+.portada-cabecera .boton-tema { float: right; }
+
+.portada-cabecera { max-width: 46rem; margin: 0 auto; padding: 1.5rem 0.875rem 0.5rem; }
+.portada-cabecera h1 { margin-top: 0.35rem; font-size: 1.75rem; }
+.lema { margin-top: 0.6rem; color: var(--texto-suave); }
+.portada-acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+.pagina-portada main > section { margin-top: 1.75rem; }
+
+/* ---------- Tarjetas de partido (portada) ---------- */
+
+.rejilla { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+@media (min-width: 40rem) { .rejilla { grid-template-columns: 1fr 1fr; } }
+
+.tarjeta {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 0.85rem; box-shadow: var(--sombra);
+}
+.tarjeta.estado-en-vivo { border-color: var(--vivo); }
+.tarjeta-estado { margin-bottom: 0.5rem; }
+.tarjeta-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+
+.fila-equipo, .marcador-equipo { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; }
+.franja { flex: none; width: 0.4rem; height: 1.9rem; border-radius: 3px; background: var(--borde); }
+.fila-equipo .nombre { font-weight: 700; }
+.fila-equipo .detalle { color: var(--texto-suave); font-size: 0.875rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila-equipo .puntos { font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.gano .nombre, .gano .puntos { color: var(--acento); }
+
+/* ---------- Marcador (vista de partido) ---------- */
+
+.marcador {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 0.85rem; box-shadow: var(--sombra);
+}
+.marcador-estado { margin-bottom: 0.4rem; }
+.marcador-nombre { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.marcador-nombre .nombre { font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
+.marcador-nombre .detalle { color: var(--texto-suave); font-size: 0.82rem; }
+.marcador-equipo .puntos { font-weight: 800; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; }
+.marcador-equipo .franja { height: 2.4rem; }
+.balon { flex: none; width: 1rem; height: 0.65rem; border-radius: 50%; background: #b5651d; border: 1px solid rgba(255, 255, 255, 0.6); }
+
+/* ---------- Controles de la repetición ---------- */
+
+.repeticion {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 0.75rem;
+}
+.repeticion-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.repeticion-fila + .repeticion-fila { margin-top: 0.6rem; }
+.repeticion-pie { justify-content: space-between; }
+.repeticion .boton-chico { min-height: 2.4rem; padding: 0.3rem 0.7rem; font-size: 0.88rem; }
+.repeticion .boton { min-height: 2.6rem; padding: 0.4rem 0.8rem; font-size: 0.95rem; }
+.cuenta { color: var(--texto-suave); font-size: 0.9rem; flex: 1; }
+.velocidad { color: var(--texto-suave); font-size: 0.9rem; }
+.selector { min-height: 2.4rem; padding: 0 0.5rem; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto); font: inherit; }
+.barra { width: 100%; accent-color: var(--acento); min-height: 1.75rem; }
+
+/* ---------- Situación actual y mini cancha ---------- */
+
+.situacion {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 0.85rem;
+}
+.situacion:empty { display: none; }
+.situacion h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-suave); }
+.situacion-titulo { margin-top: 0.25rem; font-size: 1.3rem; font-weight: 800; line-height: 1.25; }
+.situacion-texto { margin-top: 0.35rem; }
+
+.cancha { display: block; width: 100%; height: auto; margin-top: 0.75rem; }
+.cancha-pasto { fill: var(--pasto); }
+.cancha-zona { fill: #24324f; opacity: 0.95; }
+.cancha-zona-texto { fill: #fff; font-size: 4.2px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; letter-spacing: 0.3px; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.8px; }
+.cancha-linea { stroke: var(--pasto-linea); stroke-width: 0.25; }
+.cancha-medio { stroke-width: 0.5; }
+.cancha-numero { fill: rgba(255, 255, 255, 0.75); font-size: 3px; text-anchor: middle; font-weight: 700; }
+.cancha-tramo { fill: rgba(255, 212, 59, 0.22); }
+.cancha-marca { stroke: #ffd43b; stroke-width: 0.8; }
+.cancha-golpeo { stroke: #6db3ff; stroke-width: 0.8; }
+.cancha-flecha { stroke: #fff; stroke-width: 0.9; }
+.cancha-flecha-punta { fill: #fff; }
+.cancha-balon { fill: #b5651d; stroke: #fff; stroke-width: 0.5; }
+
+.cancha-leyenda { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; margin-top: 0.4rem; color: var(--texto-suave); font-size: 0.82rem; }
+.leyenda::before { content: ""; display: inline-block; width: 0.9rem; height: 0.2rem; margin-right: 0.35rem; vertical-align: middle; border-radius: 2px; }
+.leyenda-golpeo::before { background: #6db3ff; }
+.leyenda-marca::before { background: #ffd43b; }
+
+/* ---------- Resumen final ---------- */
+
+.resumen { background: var(--superficie); border: 1px solid var(--acento); border-radius: var(--radio); padding: 0.85rem; }
+.resumen[hidden] { display: none; }
+.resumen p { margin-top: 0.35rem; color: var(--texto-suave); }
+.resumen-lista { margin: 0.6rem 0 0.8rem; padding-left: 1.25rem; }
+.resumen-lista li + li { margin-top: 0.45rem; }
+
+/* ---------- Feed de jugadas ---------- */
+
+.titulo-feed { margin-top: 1.5rem; }
+.feed { margin-top: 0.5rem; }
+.drive { margin-top: 1.1rem; --color-equipo: var(--borde); }
+.drive-titulo {
+  position: sticky; top: 0; z-index: 2;
+  padding: 0.55rem 0.7rem; border-left: 0.4rem solid var(--color-equipo); border-radius: 8px;
+  background: var(--superficie-2); font-size: 0.95rem; font-weight: 700; line-height: 1.3;
+}
+.drive.en-curso .drive-titulo::after { content: " ●"; color: var(--vivo); }
+.drive-jugadas { display: grid; gap: 0.55rem; margin-top: 0.55rem; }
+
+.jugada {
+  --color-cat: var(--pausa);
+  background: var(--superficie); border: 1px solid var(--borde); border-left: 0.3rem solid var(--color-cat);
+  border-radius: 12px; padding: 0.7rem 0.8rem;
+}
+.cat-pase { --color-cat: var(--pase); }
+.cat-carrera { --color-cat: var(--carrera); }
+.cat-patada { --color-cat: var(--patada); }
+.cat-penal { --color-cat: var(--penal); }
+.cat-perdida { --color-cat: var(--perdida); }
+.cat-anotacion { --color-cat: var(--anotacion); }
+.cat-pausa, .cat-otro { --color-cat: var(--pausa); }
+
+.jugada-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.tipo { color: var(--color-cat); font-weight: 800; font-size: 0.86rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.cuando { color: var(--texto-suave); font-size: 0.82rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.previa { margin-top: 0.15rem; color: var(--texto-suave); font-size: 0.88rem; }
+.explicacion { margin-top: 0.3rem; font-size: 1.02rem; }
+.porque { margin-top: 0.45rem; padding: 0.5rem 0.65rem; border-radius: 10px; background: var(--superficie-2); font-size: 0.95rem; }
+.porque strong { color: var(--penal); }
+.marcador-mini { margin-top: 0.45rem; font-weight: 800; color: var(--anotacion); }
+
+.jugada.menor { padding: 0.5rem 0.8rem; background: transparent; }
+.jugada.menor .explicacion { font-size: 0.93rem; color: var(--texto-suave); }
+
+.jugada.clave { border-color: var(--penal); box-shadow: 0 0 0 1px var(--penal); }
+.sello-clave { margin-top: 0.3rem; color: var(--penal); font-weight: 800; font-size: 0.86rem; }
+
+.jugada.cat-anotacion { background: color-mix(in srgb, var(--anotacion) 9%, var(--superficie)); }
+
+.jugada.nueva { animation: llegar 0.6s ease-out; }
+@keyframes llegar { from { opacity: 0; transform: translateY(-0.6rem); } to { opacity: 1; transform: none; } }
+
+.conceptos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.conceptos:empty { display: none; }
+.etiqueta {
+  min-height: 2rem; padding: 0.2rem 0.65rem; border-radius: 999px;
+  border: 1px solid var(--borde); background: transparent; color: var(--enlace);
+  font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+}
+.etiqueta:hover { border-color: var(--enlace); }
+
+.original { margin-top: 0.5rem; color: var(--texto-suave); font-size: 0.86rem; }
+.original summary { cursor: pointer; padding: 0.25rem 0; }
+.original p { margin-top: 0.25rem; overflow-wrap: anywhere; }
+
+/* ---------- La Pizarra ---------- */
+
+.pizarra-contenedor { margin-top: 0.55rem; }
+.boton-pizarra {
+  min-height: 2.4rem; padding: 0.3rem 0.8rem; border-radius: 10px;
+  border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto);
+  font: inherit; font-size: 0.9rem; font-weight: 650; cursor: pointer;
+}
+.boton-pizarra:hover { border-color: var(--texto-suave); }
+.boton-pizarra[aria-expanded="true"] { border-color: var(--acento); }
+.pizarra-zona[hidden] { display: none; }
+.pizarra { margin-top: 0.5rem; }
+.pizarra .cancha { margin-top: 0; border-radius: 6px; }
+.pizarra-texto { margin-top: 0.45rem; font-size: 0.93rem; }
+.pizarra .boton-chico, .clasica .boton-chico { min-height: 2.4rem; margin-top: 0.5rem; padding: 0.3rem 0.8rem; font-size: 0.88rem; }
+.pizarra-camino { stroke: #fff; stroke-width: 0.9; stroke-linecap: round; }
+.pizarra-pase, .pizarra-pase-incompleto { stroke: #9fd0ff; }
+.pizarra-carrera, .pizarra-movimiento { stroke: #ffc27d; }
+.pizarra-patada, .pizarra-gol-de-campo { stroke: #dcc8ff; }
+.pizarra-penal { stroke: #ffd43b; }
+.pizarra-origen { fill: none; stroke: #fff; stroke-width: 0.5; }
+.pizarra-llegada { fill: none; stroke: #fff; stroke-width: 0.5; stroke-dasharray: 1.2 1; }
+.pizarra-cruz { stroke: #ff7a7a; stroke-width: 1; stroke-linecap: round; }
+.pizarra-postes { stroke: #ffd43b; stroke-width: 1.2; stroke-linecap: round; }
+
+/* ---------- La Pizarra: jugadas clásicas ---------- */
+
+.pagina-pizarra h1 { margin-top: 0.5rem; }
+.clasica-indice { margin: 0.75rem 0 0; padding-left: 1.2rem; }
+.clasica-indice li + li { margin-top: 0.3rem; }
+.clasica { margin-top: 1.25rem; padding: 0.85rem; border: 1px solid var(--borde); border-radius: var(--radio); background: var(--superficie); box-shadow: var(--sombra); scroll-margin-top: 0.75rem; }
+.clasica-resumen { margin-top: 0.4rem; }
+.clasica-cuando { margin-top: 0.4rem; color: var(--texto-suave); font-size: 0.93rem; }
+.clasica-cancha { display: block; width: 100%; height: auto; margin-top: 0.75rem; border-radius: 8px; }
+.clasica-zona { fill: #24324f; }
+.clasica-rotulo { fill: rgba(255, 255, 255, 0.8); font-size: 3px; font-weight: 800; text-anchor: middle; letter-spacing: 0.4px; }
+.clasica-rotulo-izq { text-anchor: start; fill: #ffd43b; }
+.ficha-o circle { fill: #f4f7ff; stroke: #0b1220; stroke-width: 0.5; }
+.ficha-o text { fill: #0b1220; font-size: 3.1px; font-weight: 800; text-anchor: middle; }
+.ficha-x line { stroke: #ffb3b3; stroke-width: 1.1; stroke-linecap: round; }
+.ruta { stroke-width: 0.5; stroke-linecap: round; opacity: 0.35; }
+.ruta-o { stroke: #f4f7ff; }
+.ruta-x { stroke: #ffb3b3; stroke-dasharray: 1.4 1.2; }
+.ruta-actual { opacity: 0.95; stroke-width: 0.7; }
+.clasica-vuelo { stroke: #ffd43b; stroke-width: 0.7; stroke-dasharray: 1.6 1.4; stroke-linecap: round; }
+.clasica-leyenda { align-items: center; }
+.leyenda-ficha::before { display: inline-block; width: 1.2rem; margin-right: 0.25rem; text-align: center; font-weight: 800; }
+.leyenda-o::before { content: "O"; color: var(--texto); }
+.leyenda-x::before { content: "X"; color: var(--perdida); }
+.clasica-paso { margin-top: 0.7rem; padding: 0.65rem 0.75rem; border-radius: 10px; background: var(--superficie-2); min-height: 9.5rem; }
+.clasica-cuenta { color: var(--texto-suave); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.clasica-paso-titulo { margin-top: 0.15rem; font-size: 1.08rem; }
+.clasica-paso-texto { margin-top: 0.3rem; }
+.clasica-controles { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.clasica-letras { margin: 0.7rem 0 0; padding: 0; list-style: none; color: var(--texto-suave); font-size: 0.86rem; }
+.clasica-letras strong { color: var(--texto); }
+.clasica > p:last-child { margin-top: 0.6rem; }
+
+/* ---------- Glosario ---------- */
+
+.boton-glosario {
+  position: fixed; right: 0.875rem; bottom: 0.875rem; z-index: 10;
+  min-height: 3rem; padding: 0.6rem 1.1rem; border-radius: 999px; border: 0;
+  background: var(--acento); color: var(--acento-texto); font: inherit; font-weight: 800; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.panel-glosario {
+  width: min(100vw, 34rem); max-width: 100vw; height: min(100dvh, 46rem); max-height: 100dvh;
+  margin: auto auto 0; padding: 0.875rem; border: 1px solid var(--borde); border-radius: var(--radio) var(--radio) 0 0;
+  background: var(--fondo); color: var(--texto); overflow-y: auto;
+}
+@media (min-width: 40rem) { .panel-glosario { margin: auto; border-radius: var(--radio); } }
+.panel-glosario::backdrop { background: rgba(0, 0, 0, 0.6); }
+.panel-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.boton-cerrar { min-height: 2.75rem; padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto); font: inherit; font-weight: 650; cursor: pointer; }
+
+.buscador {
+  width: 100%; min-height: 2.9rem; margin-top: 0.75rem; padding: 0.5rem 0.85rem;
+  border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--texto); font: inherit;
+}
+.glosario-lista h2, .glosario-lista h3:not(.termino h3) { margin-top: 1.25rem; color: var(--texto-suave); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.termino { margin-top: 0.5rem; padding: 0.6rem 0.75rem; border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); scroll-margin-top: 0.75rem; }
+.termino summary { cursor: pointer; font-weight: 700; }
+.termino h3 { margin: 0; font-size: 1.02rem; color: var(--texto); text-transform: none; letter-spacing: 0; }
+.termino p { margin-top: 0.4rem; }
+.termino .ejemplo { color: var(--texto-suave); font-size: 0.95rem; }
+.termino:target { border-color: var(--acento); }
+.pagina-glosario h1 { margin-top: 0.5rem; }
+
+/* ---------- Pie ---------- */
+
+.pie { max-width: 46rem; margin: 2.5rem auto 0; padding: 0 0.875rem; color: var(--texto-suave); font-size: 0.82rem; }
+.pie p + p { margin-top: 0.3rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

@@ -1,0 +1,8 @@
+# Datos de analisis pesados (no los necesita el sitio)
+datos/crudos/
+datos/corpus/
+herramientas/capturas/
+# Turnos automaticos locales
+noche-*.log
+correr-noche.ps1
+node_modules/
