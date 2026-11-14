@@ -252,3 +252,28 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Pizarra (turno 3):** un pase incompleto desde la yarda 1 daba un trazo sin movimiento; la animación se quedaba a medio camino en Chrome sin ventana (agregué un temporizador de respaldo); la primera versión de las jugadas clásicas tenía 37 pares de jugadores encimados; y al agregar un enlace a la barra superior desbordé las 11 páginas a 360 px. Los cuatro los encontraron las pruebas o el verificador, no yo mirando.
 - **Proceso:** el turno 1 se cortó con 87 KB de motor escritos y sin anotar, y el turno 2 dejó 9 archivos tocados sin anotar. Desde entonces anoto después de cada avance verificable. En el turno 3 además se me colgó un comando de shell 2 minutos por un error mío, y anoté dos horas equivocadas en la bitácora que después corregí con el reloj real.
 - **Lección general:** cada vez que confié en "se ve bien" me equivoqué, y cada vez que escribí primero una comprobación automática, la comprobación encontró algo.
+
+---
+
+# Encargo 2 (`ENCARGO-2.md`)
+
+**Estado rápido:** ver la última anotación de esta sección. Orden del encargo: 1) `npm test` · 2) modo en vivo · 3) vista 3D · 4) README · 5) calidad 360 px · 6) resumen final.
+
+### Turno 4 (viernes 13, 20:49) — arranque
+- La sección "Encargo 2" no existía: empiezo por el punto 1.
+- **Punto 1, `npm test`: ya pasa, sin cambios.** `npm test` desde PowerShell y desde Git Bash con Node v24.19.0 → `tests 94 · pass 94 · fail 0`. El script de `package.json` ya era `node --test "pruebas/*.test.mjs"` (lo cambié en el turno 2); lo que falla en Node 24 es `node --test pruebas/`, que ya no usa nadie. No toqué nada.
+- Sigo con el punto 2 (modo en vivo): saco el sondeo de `js/partido.js` a un módulo puro `js/vivo.js` para poder probarlo con `node --test`.
+
+### Punto 2, modo en vivo — TERMINADO Y VERIFICADO (vie 13, 21:05)
+- **Nuevo `js/vivo.js`** (puro): `crearSondeo(...)` decide cuándo se vuelve a consultar. Lo saqué de `js/partido.js` para poder probarlo con un reloj falso. De paso corregí un defecto real: si la pestaña cambiaba de visibilidad con una consulta en camino, podían quedar dos consultas en paralelo; ahora nunca hay dos.
+- **Nuevo `js/simulador.js`** (puro): `simularEnCurso(summary, n, { forma })` corta un partido guardado en la jugada n, le pone estado en progreso y marcador parcial, y entrega el drive actual en **tres formas**: `con-current` (solo en `drives.current`), `current-repetido` (en `current` y también en `previous`) y `sin-current`.
+- **`js/modelo.js`, `drivesDe`:** ahora tolera las tres formas y además un `current` sin id, un `current` atrasado respecto de `previous` y jugadas con el mismo id en dos drives (nunca se cuenta una jugada dos veces).
+- **Demostración en el navegador:** `partido.html?id=401873052&fuente=simulado&desde=150&paso=3&cada=2&forma=con-current` muestra el partido guardado avanzando solo como si fuera en vivo (sirve también para el video del concurso).
+- **Nuevo `pruebas/vivo.test.mjs` (13 pruebas):** las tres formas dan el mismo partido en 6 cortes distintos; al refrescar, lo ya pintado no cambia ni se duplica; sondeo cada 20 s; con la pestaña oculta no consulta y al volver consulta si ya tocaba; nunca dos consultas a la vez; fallo de red con mensaje claro y lo último intacto (dos mensajes: con datos y en la primera carga); respuesta basura = fallo sin borrar nada; de "en vivo" a "final" aparece el resumen y el sondeo se detiene; partido programado consulta cada 60 s.
+- **Verificación:** `npm test` → `tests 107 · pass 107 · fail 0`. `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` (los 5 avisos de siempre por el 403 de ESPN al navegador sin ventana). Páginas nuevas en el verificador: `en-vivo-con-current`, `en-vivo-current-repetido`, `en-vivo-sin-current` (60 jugadas sin repetir, sello "En vivo", situación, marcador 3 a 0, sin resumen), `en-vivo-avanza` (llegan jugadas nuevas sin duplicados) y `en-vivo-a-final` (188 jugadas, sello "Final", resumen y oferta de repetición).
+- Me corregí: 2 de las 13 pruebas fallaron al primer intento por errores míos en la prueba, no en el código (busqué "Segunda oportunidad" en el título en vez del texto, y comparé contra la jugada 75 cuando el ciclo terminaba en la 73).
+- **Dudas sobre los datos en vivo (el código tolera lo que conozco; mirar el domingo 15):**
+  1. La situación actual sale del `end` de la última jugada. Si en vivo la última jugada llega sin `end`, se verá "Entre jugadas" hasta la siguiente. No uso `summary.situation` porque no conozco su forma en el summary.
+  2. No sé si el summary en vivo trae `winprobability` jugada a jugada; si no lo trae, no habrá jugadas clave ni resumen final hasta que ESPN lo complete (el partido se ve igual).
+  3. Una jugada cuyo texto ESPN corrige después se vuelve a pintar en su lugar (por la firma del texto); no se duplica.
+- **Sigue: punto 3 (vista 3D con Three.js).**

@@ -7,9 +7,8 @@ import { crear, vaciar, etiquetaConcepto, montarBotonGlosario, aviso, fechaLocal
 import { dibujarCancha } from './cancha.js';
 import { crearRepeticion } from './repeticion.js';
 import { trazoDeJugada, dibujarPizarra } from './pizarra.js';
-
-const CADA_EN_VIVO = 20000; // la especificación pide consultar cada 20 segundos
-const CADA_EN_ESPERA = 60000; // partido que todavía no empieza
+import { crearSondeo, mensajeDeFallo } from './vivo.js';
+import { simularEnCurso, FORMAS_EN_VIVO } from './simulador.js';
 
 const parametros = new URLSearchParams(location.search);
 const idPartido = (parametros.get('id') || '').trim();
@@ -17,6 +16,8 @@ const enRepeticion = parametros.get('modo') === 'repeticion';
 // ?fuente=guardado muestra el partido guardado completo por el mismo camino que usa el modo en vivo.
 // Sirve para ver un partido sin conexión y para probar esa parte sin depender de ESPN.
 const desdeGuardado = parametros.get('fuente') === 'guardado';
+// ?fuente=simulado convierte el partido guardado en uno "en curso" que avanza solo (demostración y pruebas del modo en vivo).
+const simulado = parametros.get('fuente') === 'simulado';
 
 let abrirPizarraAlCargar = parametros.get('pizarra') === 'abierta';
 
@@ -260,41 +261,39 @@ async function iniciarRepeticion() {
 // Modo en vivo
 // ---------------------------------------------------------------------------
 
-let ultimoEstado = '';
-let hayDatos = false;
-let temporizador = null;
-let ultimaConsulta = 0;
+// El sondeo (cada cuánto se consulta, pausa con la pestaña oculta, reintentos) vive en js/vivo.js, con pruebas.
 
-function programarConsulta() {
-  if (temporizador) clearTimeout(temporizador);
-  temporizador = null;
-  if (ultimoEstado === 'final') return;
-  const cada = ultimoEstado === 'en-vivo' || !hayDatos ? CADA_EN_VIVO : CADA_EN_ESPERA;
-  // Solo se consulta con la pestaña visible; al volver a ella se consulta de inmediato si ya tocaba.
-  if (document.hidden) return;
-  const falta = Math.max(0, cada - (Date.now() - ultimaConsulta));
-  temporizador = setTimeout(consultar, falta);
+// Partido simulado "en curso": el guardado cortado en una jugada que avanza en cada consulta.
+// partido.html?id=...&fuente=simulado&desde=150&paso=3&cada=2&forma=con-current
+let jugadaSimulada = Math.max(0, Number(parametros.get('desde')) || 0);
+const pasoSimulado = Math.max(0, parametros.has('paso') ? Number(parametros.get('paso')) || 0 : 2);
+const formaSimulada = FORMAS_EN_VIVO.includes(parametros.get('forma')) ? parametros.get('forma') : 'con-current';
+let guardadoSimulado = null;
+
+async function traerSimulado() {
+  if (!guardadoSimulado) guardadoSimulado = await traerPartidoGuardado(idPartido);
+  const summary = simularEnCurso(guardadoSimulado, jugadaSimulada, { forma: formaSimulada });
+  jugadaSimulada += pasoSimulado;
+  return summary;
 }
 
-async function consultar() {
-  ultimaConsulta = Date.now();
-  try {
-    const summary = await (desdeGuardado ? traerPartidoGuardado : traerPartido)(idPartido);
-    const p = construirPartido(summary);
-    if (!p.local.nombre && !p.visitante.nombre) throw new Error('La respuesta no trae el partido');
-    pintar(p, { animar: hayDatos });
-    hayDatos = true;
-    ultimoEstado = p.estado;
-    ponerAviso('red', null);
-    ponerAviso('modo', p.estado === 'en-vivo' ? aviso('En vivo: esta página se actualiza sola cada 20 segundos.') : null);
-    if (p.estado === 'final') ofrecerRepeticion();
-  } catch {
-    ponerAviso('red', aviso(hayDatos
-      ? 'No pudimos actualizar el partido. Te mostramos lo último que teníamos y volvemos a intentar en unos segundos.'
-      : 'No pudimos cargar este partido desde la fuente de datos. Volvemos a intentar en unos segundos; mientras tanto puedes probar el modo repetición desde la portada.', 'error'));
-    document.body.dataset.listo = '1';
-  }
-  programarConsulta();
+const traerDatos = () => (simulado ? traerSimulado() : desdeGuardado ? traerPartidoGuardado(idPartido) : traerPartido(idPartido));
+
+function recibir(summary, { primeraVez }) {
+  const p = construirPartido(summary);
+  if (!p.local.nombre && !p.visitante.nombre) throw new Error('La respuesta no trae el partido');
+  pintar(p, { animar: !primeraVez });
+  ponerAviso('red', null);
+  ponerAviso('modo', p.estado === 'en-vivo'
+    ? aviso(simulado ? 'Demostración: un partido guardado que avanza solo, como si fuera en vivo.' : 'En vivo: esta página se actualiza sola cada 20 segundos.')
+    : null);
+  if (p.estado === 'final') ofrecerRepeticion();
+  return p.estado;
+}
+
+function fallar({ hayDatos }) {
+  ponerAviso('red', aviso(mensajeDeFallo(hayDatos), 'error'));
+  document.body.dataset.listo = '1';
 }
 
 async function ofrecerRepeticion() {
@@ -315,6 +314,14 @@ if (!/^\d{1,15}$/.test(idPartido)) {
 } else if (enRepeticion) {
   iniciarRepeticion();
 } else {
-  document.addEventListener('visibilitychange', programarConsulta);
-  consultar();
+  const cadaSimulado = Math.max(0.2, Number(parametros.get('cada')) || 4) * 1000;
+  const sondeo = crearSondeo({
+    traer: traerDatos,
+    alRecibir: recibir,
+    alFallar: fallar,
+    estaOculta: () => document.hidden,
+    ...(simulado ? { cadaEnVivo: cadaSimulado, cadaEnEspera: cadaSimulado } : {}),
+  });
+  document.addEventListener('visibilitychange', sondeo.programar);
+  sondeo.consultar();
 }

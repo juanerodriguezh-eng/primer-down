@@ -83,16 +83,34 @@ export function construirCartelera(scoreboard) {
 // Vista de partido
 // ---------------------------------------------------------------------------
 
-// Junta drives.previous y drives.current sin repetir (en vivo, el drive actual puede venir en los dos).
+// Junta drives.previous y drives.current sin repetir nada. En vivo no sabemos con certeza cómo llega el drive
+// en curso (solo en current, repetido en previous o sin current), así que se toleran las tres formas:
+// si el drive actual ya está entre los previos gana la copia con más jugadas, y una jugada con el mismo id
+// nunca se cuenta dos veces.
 function drivesDe(summary) {
-  const previos = Array.isArray(summary?.drives?.previous) ? summary.drives.previous.filter(Boolean) : [];
+  const previos = Array.isArray(summary?.drives?.previous) ? summary.drives.previous.filter((d) => d && typeof d === 'object') : [];
   const actual = summary?.drives?.current;
-  if (!actual || typeof actual !== 'object') return previos;
-  const i = previos.findIndex((d) => d.id && d.id === actual.id);
-  if (i === -1) return [...previos, actual];
-  const copia = [...previos];
-  if ((actual.plays?.length || 0) >= (previos[i].plays?.length || 0)) copia[i] = actual;
-  return copia;
+  let lista = previos;
+  if (actual && typeof actual === 'object' && !Array.isArray(actual)) {
+    const primera = actual.plays?.[0]?.id;
+    const i = previos.findIndex((d) => (d.id != null && actual.id != null && String(d.id) === String(actual.id))
+      || (primera != null && d.plays?.[0]?.id != null && String(d.plays[0].id) === String(primera)));
+    if (i === -1) lista = [...previos, actual];
+    else if ((actual.plays?.length || 0) >= (previos[i].plays?.length || 0)) { lista = [...previos]; lista[i] = actual; }
+  }
+  const vistas = new Set();
+  return lista.map((d) => {
+    const original = Array.isArray(d.plays) ? d.plays : [];
+    const plays = original.filter((p) => {
+      if (!p || typeof p !== 'object') return false;
+      if (p.id == null) return true;
+      const id = String(p.id);
+      if (vistas.has(id)) return false;
+      vistas.add(id);
+      return true;
+    });
+    return plays.length === original.length && Array.isArray(d.plays) ? d : { ...d, plays };
+  });
 }
 
 export function contarJugadas(summary) {

@@ -26,11 +26,12 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/pizarra.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
 const contar = (texto, re) => (texto.match(re) || []).length;
+const idsDeJugadas = (dom) => [...dom.matchAll(/<article class="jugada [^"]*" data-id="([^"]+)"/g)].map((m) => m[1]);
 
 // Cada página: qué debe aparecer en el DOM ya pintado. `red: true` = depende de que ESPN responda.
 const PAGINAS = [
@@ -87,6 +88,25 @@ const PAGINAS = [
     ['todas llegan a su último paso', contar(dom, /Ver de nuevo/g) === 5 && dom.includes('Paso 4 de 4') && dom.includes('Paso 5 de 5')],
     ['rutas dibujadas', contar(dom, /class="ruta ruta-[ox]/g) > 100],
     ['texto del último paso del Hail Mary', dom.includes('Casi nunca sale… pero a veces sí')],
+  ] },
+  // Modo en vivo con un partido simulado (el guardado cortado a la mitad, que avanza en cada consulta).
+  ...['con-current', 'current-repetido', 'sin-current'].map((forma) => ({ nombre: `en-vivo-${forma}`, ruta: `/partido.html?id=401873052&fuente=simulado&desde=60&paso=0&forma=${forma}`, revisar: (dom) => [
+    ['sello "En vivo" con cuarto y reloj', /class="sello sello-vivo">En vivo · 2\.º cuarto · \d+:\d\d</.test(dom)],
+    ['60 jugadas, ninguna repetida aunque se consultó varias veces', idsDeJugadas(dom).length === 60 && new Set(idsDeJugadas(dom)).size === 60],
+    ['situación actual', dom.includes('Situación actual') && dom.includes('Segunda oportunidad: a los Giants les faltan 8 yardas')],
+    ['marcador parcial 3 a 0', />Commanders<[\s\S]*?class="puntos">3<[\s\S]*?>Giants<[\s\S]*?class="puntos">0</.test(dom)],
+    ['sin resumen final todavía', !dom.includes('Así se ganó el partido')],
+  ] })),
+  { nombre: 'en-vivo-avanza', ruta: '/partido.html?id=401873052&fuente=simulado&desde=60&paso=3&cada=1.5', revisar: (dom) => [
+    ['llegaron jugadas nuevas en cada consulta', idsDeJugadas(dom).length > 66 && idsDeJugadas(dom).length < 188],
+    ['ninguna jugada duplicada al refrescar', new Set(idsDeJugadas(dom)).size === idsDeJugadas(dom).length],
+    ['sigue en vivo', dom.includes('class="sello sello-vivo"')],
+  ] },
+  { nombre: 'en-vivo-a-final', ruta: '/partido.html?id=401873052&fuente=simulado&desde=180&paso=4&cada=1', revisar: (dom) => [
+    ['pasó de en vivo a final', dom.includes('class="sello sello-final">Final<') && dom.includes('Ganaron los Commanders, 24 a 21')],
+    ['188 jugadas sin duplicados', idsDeJugadas(dom).length === 188 && new Set(idsDeJugadas(dom)).size === 188],
+    ['aparece el resumen final', dom.includes('Así se ganó el partido') && dom.includes('Copiar resumen')],
+    ['ofrece la repetición', dom.includes('Verlo en modo repetición')],
   ] },
   { nombre: 'partido-sin-id', ruta: '/partido.html', revisar: (dom) => [
     ['mensaje claro', dom.includes('Falta indicar qué partido quieres ver')],
