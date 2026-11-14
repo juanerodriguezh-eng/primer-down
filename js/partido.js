@@ -32,14 +32,18 @@ const NOMBRES_CATEGORIA = { pase: 'Pase', carrera: 'Carrera', patada: 'Patada', 
 // Marcador
 // ---------------------------------------------------------------------------
 
-function filaEquipo(equipo, tieneBalon, esLocal) {
+// Puntos que se vieron la última vez: si un equipo suma, su número late y aparece un "+7" un momento.
+let puntosVistos = null;
+
+function filaEquipo(equipo, tieneBalon, esLocal, suma = 0) {
   return crear('div', { class: `marcador-equipo${equipo.gano ? ' gano' : ''}` },
     crear('span', { class: 'franja', style: equipo.color ? { background: equipo.color } : null, 'aria-hidden': 'true' }),
     crear('span', { class: 'marcador-nombre' },
       crear('span', { class: 'nombre' }, equipo.nombre || equipo.abrev || 'Equipo'),
       crear('span', { class: 'detalle' }, `${equipo.ciudad}${equipo.ciudad ? ' · ' : ''}${esLocal ? 'local' : 'visitante'}`)),
     tieneBalon ? crear('span', { class: 'balon', title: 'Tiene el balón' }, crear('span', { class: 'solo-lectores' }, 'Tiene el balón')) : null,
-    crear('span', { class: 'puntos' }, String(equipo.puntos)));
+    suma > 0 ? crear('span', { class: 'puntos-suma', 'aria-hidden': 'true' }, `+${suma}`) : null,
+    crear('span', { class: `puntos${suma > 0 ? ' puntos-cambio' : ''}` }, String(equipo.puntos)));
 }
 
 function pintarMarcador(p) {
@@ -55,10 +59,16 @@ function pintarMarcador(p) {
     estado = p.enRepeticion ? 'Repetición · por empezar' : `Programado${p.fecha ? ` · ${fechaLocal(p.fecha)}` : ''}`;
     clase = 'sello';
   }
+  // Solo se celebra el cambio entre dos pintadas seguidas del mismo partido (no al cargar ni al saltar hacia atrás).
+  const antes = puntosVistos;
+  const suma = (lado) => (antes && antes.id === p.id && p[lado].puntos > antes[lado] && p[lado].puntos - antes[lado] <= 8 ? p[lado].puntos - antes[lado] : 0);
+  const sumas = { visitante: suma('visitante'), local: suma('local') };
+  puntosVistos = { id: p.id, visitante: p.visitante.puntos, local: p.local.puntos };
   vaciar(zonas.marcador).append(
     crear('p', { class: 'marcador-estado' }, crear('span', { class: clase }, estado)),
-    filaEquipo(p.visitante, conBalon === p.visitante.id, false),
-    filaEquipo(p.local, conBalon === p.local.id, true));
+    filaEquipo(p.visitante, conBalon === p.visitante.id, false, sumas.visitante),
+    filaEquipo(p.local, conBalon === p.local.id, true, sumas.local));
+  zonas.marcador.dataset.cambio = sumas.visitante || sumas.local ? '1' : '0';
   document.title = `${p.visitante.nombre} ${p.visitante.puntos}, ${p.local.nombre} ${p.local.puntos} · Primer Down`;
 }
 

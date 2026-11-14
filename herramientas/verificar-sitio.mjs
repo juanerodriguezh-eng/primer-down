@@ -121,6 +121,12 @@ const PAGINAS = [
     ['aparece el resumen final', dom.includes('Así se ganó el partido') && dom.includes('Copiar resumen')],
     ['ofrece la repetición', dom.includes('Verlo en modo repetición')],
   ] },
+  // La jugada 71 es un touchdown: la segunda consulta la trae y el marcador debe celebrarlo.
+  { nombre: 'marcador-cambia', ruta: '/partido.html?id=401873052&fuente=simulado&desde=70&paso=1&cada=8', revisar: (dom) => [
+    ['llegó la jugada del touchdown', idsDeJugadas(dom).length === 71],
+    ['el marcador marca el cambio', /id="marcador"[^>]*data-cambio="1"/.test(dom) && dom.includes('class="puntos puntos-cambio"')],
+    ['muestra cuántos puntos sumó', /class="puntos-suma"[^>]*>\+7</.test(dom)],
+  ] },
   { nombre: 'partido-sin-id', ruta: '/partido.html', revisar: (dom) => [
     ['mensaje claro', dom.includes('Falta indicar qué partido quieres ver')],
   ] },
