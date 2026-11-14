@@ -414,7 +414,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 
 # Encargo 3 (`ENCARGO-3.md`): realismo y cierre
 
-**Estado rápido (sáb 14, 07:00):** recién empezado. Orden: 1) gráficos de TV · 2) luz y materiales · 3) cuerpos · 4) cámara · 5) texto del fumble · 6) `PROMPTS-FABLE.md`.
+**Estado rápido (sáb 14, 09:10):** los 6 puntos están TERMINADOS y confirmados en git, sin push; el cierre está al final de esta sección. Falta que una persona lo mire en movimiento en un celular y haga `git push`.
 
 ### Turno 7 (sáb 14, 06:58) — arranque
 - La sección "Encargo 3" no existía. Estado base verificado: árbol de git limpio (solo `ENCARGO-3.md` sin seguir), `npm test` → `tests 139 · pass 139 · fail 0`.
@@ -470,3 +470,35 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - Antes: "Pierde el balón (fumble), forzado por N. Bonitto y lo recupera N. Bonitto para los Broncos". Ahora: **"N. Bonitto le quita el balón (fumble) y él mismo lo recupera para los Broncos: cambio de posesión."** Cuando son dos jugadores distintos se siguen nombrando los dos (`js/motor.js`, `fraseBalonSuelto`).
 - Nuevo `pruebas/fumble.test.mjs` (3 pruebas): la jugada real de Bonitto con su texto, y un barrido de las 39 jugadas con fumble de los 16 partidos guardados (2 son del mismo jugador; ninguna repite el nombre).
 - **Sigue:** 6) `PROMPTS-FABLE.md`, capturas para el README y cierre.
+
+### Punto 6, `PROMPTS-FABLE.md`, capturas y README — HECHO (sáb 14, 09:10)
+- `PROMPTS-FABLE.md` reescrito: método, tabla de números (8 turnos, 94 → 139 → 154 pruebas, 137 partidos, 25.387 jugadas) y los cuatro encargos (arranque, nocturno, 2 y 3), cada uno con resultado y correcciones honestas tomadas de esta bitácora. Revisé las cifras contra la bitácora y corregí una mía (5 de 8 turnos encontraron trabajo sin anotar, no 6).
+- `docs/`: dos capturas nuevas para comparar, `encargo-3-antes.png` y `encargo-3-despues.png` (misma jugada, mismos instantes y cámaras), y regeneradas las tres del README con el aspecto nuevo.
+- `README.md` al día: gráficos de TV, antes y después, calidad automática, 154 pruebas, 28 páginas y lo que falta comprobar.
+
+---
+
+## CIERRE DEL ENCARGO 3 (sábado 14 nov, 09:10)
+
+### Qué cambió
+1. **Gráficos de transmisión:** marcador de esquina (equipos, puntos de antes de la jugada, cuarto, reloj, oportunidad), "3.ª y 7" sobre el pasto, líneas azul y amarilla pintadas bajo los jugadores y cortina de "REPETICIÓN".
+2. **Luz y materiales:** entorno PMREM, ACES, cascos con barniz, sombras suaves, torres de focos, bloom leve y grano. Con **calidad automática** (alta → media → baja si la imagen baja de unos 40 fps).
+3. **Cuerpos y movimientos:** proporciones de atleta, pliegues y franja en el uniforme, inclinación al acelerar, ladeo en las curvas, giro de hombros y gestos propios al lanzar, atrapar, taclear y caer.
+4. **Cámara:** temblor de cámara en mano en las repeticiones y estela del balón en los vuelos largos. El desenfoque a pantalla completa se probó y se descartó (dejaba fantasmas).
+5. **Texto del fumble** cuando el mismo jugador lo fuerza y lo recupera.
+6. **`PROMPTS-FABLE.md`, README y capturas** al día.
+
+### Cómo se verificó
+- `npm test` → `tests 154 · pass 154 · fail 0`.
+- `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` en 28 páginas a 360 px (los 5 avisos de siempre: ESPN responde 403 al navegador sin ventana). Incluye la vista 3D en calidad alta y baja, la repetición con su cortina, un pase largo y el respaldo 2D sin WebGL.
+- Capturas de antes y después miradas a ojo (hojas de contactos de las jugadas 35, 60 y 87).
+- 6 confirmaciones en git en este turno, una por avance. **Sin push**, como pide el encargo.
+
+### Qué falta (lo tiene que mirar una persona)
+1. **Verlo en movimiento en un celular real.** El navegador sin ventana solo me deja ver cuadros congelados. No he visto moverse: los gestos nuevos de los jugadores, el temblor de cámara, la cortina de repetición ni la estela. Abrir `partido.html?id=401873052&modo=repeticion&jugada=35&pizarra=3d` y tocar "Repetición" y "A ras de cancha".
+   - Si el temblor molesta: factor `0.011` en `moverCamara` (`js/vista3d.js`).
+   - Si algún gesto se ve raro: función `posar` del mismo archivo.
+2. **Los fps reales.** La calidad automática está probada con un reloj falso, no con un teléfono. Debajo de la imagen no se muestra el nivel; se puede ver en el atributo `data-calidad` o forzar con `&calidad=baja`.
+3. **`git push`** para publicar (lo publicado sigue siendo el encargo 2).
+4. **Domingo 15, partido en vivo de verdad:** sigue pendiente desde el encargo 2 (sondeo, `drives.current`, `winprobability` y `boxscore.players` en vivo).
+5. Sin cambios desde el encargo 2: lector de pantalla real y orden de tabulación.
