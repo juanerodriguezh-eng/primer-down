@@ -189,6 +189,54 @@ function texturaDeNumero(numero, color) {
   return t;
 }
 
+// Pliegues de tela: trazos suaves, oscuros y claros, en diagonal. `g` ya tiene el color de fondo.
+function pintarPliegues(g, W, H, semillaInicial, fuerza) {
+  let semilla = semillaInicial;
+  const azar = () => { semilla = (semilla * 16807) % 2147483647; return semilla / 2147483647; };
+  g.lineCap = 'round';
+  for (let i = 0; i < 22; i++) {
+    const x = azar() * W; const y = azar() * H; const largo = 14 + azar() * 30; const caida = (azar() - 0.5) * 16;
+    g.strokeStyle = i % 3 === 0 ? `rgba(255,255,255,${0.1 * fuerza})` : `rgba(0,0,0,${(0.1 + azar() * 0.12) * fuerza})`;
+    g.lineWidth = 2 + azar() * 4;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + largo / 2, y + caida, x + largo, y + caida * 0.4 + (azar() - 0.5) * 6); g.stroke();
+  }
+}
+
+// Relieve de los pliegues (compartido por todos los uniformes).
+let texturaDePliegues = null;
+function pliegues() {
+  if (texturaDePliegues) return texturaDePliegues;
+  const c = lienzo(64, 128);
+  const g = c.getContext('2d');
+  g.fillStyle = '#808080'; g.fillRect(0, 0, 64, 128);
+  pintarPliegues(g, 64, 128, 17, 2.2);
+  texturaDePliegues = new THREE.CanvasTexture(c);
+  texturaDePliegues.wrapS = texturaDePliegues.wrapT = THREE.RepeatWrapping;
+  return texturaDePliegues;
+}
+
+// Tela de uniforme: color liso con pliegues sombreados y, si se pide, una franja a los costados (pantalón).
+// En las cápsulas, u = 0 y u = 0,5 caen en los costados del cuerpo.
+const texturasDeTela = new Map();
+function texturaDeTela(color, franja) {
+  const clave = `${color}|${franja || ''}`;
+  if (texturasDeTela.has(clave)) return texturasDeTela.get(clave);
+  const c = lienzo(64, 128);
+  const g = c.getContext('2d');
+  g.fillStyle = color; g.fillRect(0, 0, 64, 128);
+  // Sombreado suave: más oscuro abajo y bajo los brazos, como una prenda con volumen.
+  const sombra = g.createLinearGradient(0, 0, 0, 128);
+  sombra.addColorStop(0, 'rgba(255,255,255,0.06)'); sombra.addColorStop(1, 'rgba(0,0,0,0.16)');
+  g.fillStyle = sombra; g.fillRect(0, 0, 64, 128);
+  pintarPliegues(g, 64, 128, 17, 1);
+  if (franja) { g.fillStyle = franja; g.fillRect(0, 0, 2.5, 128); g.fillRect(61.5, 0, 2.5, 128); g.fillRect(29.5, 0, 5, 128); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  texturasDeTela.set(clave, t);
+  return t;
+}
+
 function texturaDeBalon() {
   const c = lienzo(128, 64);
   const g = c.getContext('2d');
@@ -276,18 +324,23 @@ let geo = null;
 function geometrias() {
   if (geo) return geo;
   geo = {
-    muslo: new THREE.CapsuleGeometry(0.088, 0.33, 3, 8),
-    pierna: new THREE.CapsuleGeometry(0.066, 0.34, 3, 8),
+    // Proporciones de atleta: muslos y pantorrillas gruesos, cintura angosta, pecho y hombros anchos.
+    muslo: new THREE.CapsuleGeometry(0.108, 0.29, 3, 10),
+    pierna: new THREE.CapsuleGeometry(0.06, 0.34, 3, 8),
+    gemelo: new THREE.SphereGeometry(0.08, 8, 6),
     pie: new THREE.BoxGeometry(0.27, 0.085, 0.11),
-    torso: new THREE.CapsuleGeometry(0.19, 0.27, 4, 10),
+    torso: new THREE.CapsuleGeometry(0.2, 0.2, 4, 12),
+    cintura: new THREE.CapsuleGeometry(0.155, 0.12, 3, 10),
+    cuello: new THREE.CylinderGeometry(0.07, 0.085, 0.12, 8),
+    deltoide: new THREE.SphereGeometry(0.1, 8, 6),
     cadera: new THREE.SphereGeometry(0.175, 10, 8),
     hombreras: new THREE.SphereGeometry(0.2, 12, 8),
     casco: new THREE.SphereGeometry(0.158, 14, 12),
     cara: new THREE.SphereGeometry(0.105, 10, 8),
     barra: new THREE.TorusGeometry(0.118, 0.011, 4, 10, Math.PI * 1.02),
     franja: new THREE.TorusGeometry(0.16, 0.017, 4, 12, Math.PI),
-    brazo: new THREE.CapsuleGeometry(0.062, 0.2, 3, 8),
-    antebrazo: new THREE.CapsuleGeometry(0.05, 0.2, 3, 8),
+    brazo: new THREE.CapsuleGeometry(0.076, 0.17, 3, 8),
+    antebrazo: new THREE.CapsuleGeometry(0.056, 0.2, 3, 8),
     mano: new THREE.SphereGeometry(0.058, 8, 6),
     numero: new THREE.PlaneGeometry(0.3, 0.3),
   };
@@ -300,10 +353,13 @@ function uniforme(equipo) {
   const camiseta = equipo.esLocal ? color : '#f1f2f4';
   const numero = equipo.esLocal ? (luminancia(color) > 0.6 ? '#10151f' : '#ffffff') : (luminancia(color) > 0.75 ? '#10151f' : color);
   const mat = (c, extra = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0, envMapIntensity: 0.5, ...extra });
+  // Tela: el color va en una textura con pliegues sombreados, y los mismos pliegues dan relieve a la luz.
+  const tela = (c, franja) => mat('#ffffff', { map: texturaDeTela(c, franja), bumpMap: pliegues(), bumpScale: 1.6, roughness: 0.78 });
+  const colorPantalon = equipo.esLocal ? '#e6e7ea' : color;
   return {
     numero,
-    camiseta: mat(camiseta),
-    pantalon: mat(equipo.esLocal ? '#e6e7ea' : color),
+    camiseta: tela(camiseta, null),
+    pantalon: tela(colorPantalon, luminancia(colorPantalon) > 0.6 ? color : alterno),
     calceta: mat(equipo.esLocal ? color : '#f1f2f4'),
     // Casco: pintura brillante con barniz, que refleja las luces del estadio.
     casco: new THREE.MeshPhysicalMaterial({ color: equipo.esLocal ? (luminancia(alterno) > 0.9 ? color : alterno) : color, roughness: 0.2, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.5 }),
@@ -326,17 +382,23 @@ function crearJugador(datos, u, indice, sombras) {
   cadera.position.y = ALTO_CADERA;
   cuerpo.add(cadera);
   const pelvis = malla(G.cadera, u.pantalon, true);
-  pelvis.scale.set(0.85, 0.8, 1.05);
+  pelvis.scale.set(0.98, 0.84, 1.14);
+  pelvis.position.x = -0.015; // glúteos
   cadera.add(pelvis);
+  // Cada jugador tiene su talla: los linieros son más anchos y pesados; los demás varían un poco de estatura.
+  const linero = DE_LINEA.has(datos.rol);
+  const talla = 0.97 + ((indice * 7) % 5) * 0.015;
+  cuerpo.scale.set(linero ? 1.16 : 1, linero ? 1.03 : talla, linero ? 1.14 : 1);
 
   const pierna = (lado) => {
     const muslo = new THREE.Group();
-    muslo.position.set(0, -0.03, lado * 0.105);
-    const m = malla(G.muslo, u.pantalon, true); m.position.y = -0.25;
+    muslo.position.set(0, -0.03, lado * 0.115);
+    const m = malla(G.muslo, u.pantalon, true); m.position.y = -0.24; m.scale.set(1.1, 1, 0.98);
     const rodilla = new THREE.Group(); rodilla.position.y = -0.5;
     const p = malla(G.pierna, u.calceta, true); p.position.y = -0.23;
+    const gemelo = malla(G.gemelo, u.calceta); gemelo.position.set(-0.03, -0.15, 0); gemelo.scale.set(1, 1.6, 0.95);
     const pie = malla(G.pie, u.zapato); pie.position.set(0.07, -0.455, 0);
-    rodilla.add(p, pie);
+    rodilla.add(p, gemelo, pie);
     muslo.add(m, rodilla);
     cadera.add(muslo);
     return { muslo, rodilla };
@@ -347,13 +409,16 @@ function crearJugador(datos, u, indice, sombras) {
   const torso = new THREE.Group();
   torso.position.y = 0.06;
   cadera.add(torso);
-  const pecho = malla(G.torso, u.camiseta, true); pecho.position.y = 0.33; pecho.scale.set(0.74, 1, 1.1);
-  const hombreras = malla(G.hombreras, u.camiseta, true); hombreras.position.y = 0.56; hombreras.scale.set(0.82, 0.5, 1.42);
-  torso.add(pecho, hombreras);
+  // Torso en V: cintura angosta, pecho ancho y hombreras que sobresalen.
+  const cintura = malla(G.cintura, u.camiseta, true); cintura.position.y = 0.15; cintura.scale.set(0.8, 1, 1.06);
+  const pecho = malla(G.torso, u.camiseta, true); pecho.position.y = 0.38; pecho.scale.set(0.8, 1, 1.24);
+  const hombreras = malla(G.hombreras, u.camiseta, true); hombreras.position.y = 0.58; hombreras.scale.set(0.9, 0.52, 1.62);
+  const cuello = malla(G.cuello, piel); cuello.position.y = 0.7;
+  torso.add(cintura, pecho, hombreras, cuello);
   if (datos.numero !== '') {
     const mNumero = new THREE.MeshLambertMaterial({ map: texturaDeNumero(datos.numero, u.numero), transparent: true, alphaTest: 0.4 });
-    const frente = new THREE.Mesh(G.numero, mNumero); frente.position.set(0.148, 0.35, 0); frente.rotation.y = Math.PI / 2;
-    const espalda = new THREE.Mesh(G.numero, mNumero); espalda.position.set(-0.148, 0.37, 0); espalda.rotation.y = -Math.PI / 2;
+    const frente = new THREE.Mesh(G.numero, mNumero); frente.position.set(0.164, 0.38, 0); frente.rotation.y = Math.PI / 2;
+    const espalda = new THREE.Mesh(G.numero, mNumero); espalda.position.set(-0.164, 0.4, 0); espalda.rotation.y = -Math.PI / 2;
     torso.add(frente, espalda);
   }
   const cabeza = new THREE.Group();
@@ -368,13 +433,14 @@ function crearJugador(datos, u, indice, sombras) {
 
   const brazo = (lado) => {
     const hombro = new THREE.Group();
-    hombro.position.set(0, 0.55, lado * 0.27);
-    const b = malla(G.brazo, u.camiseta); b.position.y = -0.15;
+    hombro.position.set(0, 0.56, lado * 0.31);
+    const deltoide = malla(G.deltoide, u.camiseta); deltoide.position.y = -0.01; deltoide.scale.set(1.05, 1, 1.05);
+    const b = malla(G.brazo, piel, true); b.position.y = -0.16;
     const codo = new THREE.Group(); codo.position.y = -0.31;
-    const a = malla(G.antebrazo, piel); a.position.y = -0.14;
+    const a = malla(G.antebrazo, piel); a.position.y = -0.14; a.scale.set(1, 1, 0.9);
     const mano = malla(G.mano, u.guante); mano.position.y = -0.3;
     codo.add(a, mano);
-    hombro.add(b, codo);
+    hombro.add(deltoide, b, codo);
     torso.add(hombro);
     return { hombro, codo };
   };
@@ -383,30 +449,44 @@ function crearJugador(datos, u, indice, sombras) {
 
   return {
     id: datos.id, raiz, cuerpo, cadera, torso, cabeza, piernaIzq, piernaDer, brazoIzq, brazoDer,
-    deLinea: DE_LINEA.has(datos.rol), fase: indice * 1.7, rumbo: null, x: 0, z: 0,
+    deLinea: linero, fase: indice * 1.7, rumbo: null, x: 0, z: 0, rapidezAnt: null, acel: 0, rumboAnt: null, ladeo: 0,
   };
 }
 
 // Pone la pose del cuerpo según lo que está haciendo el jugador (ciclos procedurales, sin archivos de animación).
 function posar(j, e, dt, antesDelCentro, llevaBalon) {
   const amp = limitar(e.rapidez / 6.5, 0, 1);
+  const sprint = limitar((e.rapidez - 5) / 4, 0, 1); // a toda velocidad la zancada se alarga y el cuerpo se echa adelante
   j.fase += dt * (e.rapidez > 0.3 ? 5 + e.rapidez * 1.75 : 0);
   const s = Math.sin(j.fase);
   const paso = e.retrocede ? 0.55 : 1;
-  // Base: carrera (si va quieto, amp = 0 y queda de pie).
-  let musloI = (s * 0.95 + 0.12) * amp * paso;
-  let musloD = (-s * 0.95 + 0.12) * amp * paso;
-  let rodillaI = -(0.2 + 1.15 * Math.max(0, Math.sin(j.fase - 1.2))) * amp;
-  let rodillaD = -(0.2 + 1.15 * Math.max(0, Math.sin(j.fase - 1.2 + Math.PI))) * amp;
-  let hombroI = -s * 0.85 * amp;
-  let hombroD = s * 0.85 * amp;
-  let codoI = 0.25 + 1.2 * amp;
-  let codoD = 0.25 + 1.2 * amp;
+  // Aceleración y giro (suavizados): al arrancar el cuerpo se inclina hacia adelante, al frenar se endereza,
+  // y en las curvas se ladea hacia adentro.
+  const k6 = 1 - Math.exp(-dt * 6);
+  const acelAhora = j.rapidezAnt === null || dt <= 0 ? 0 : limitar((e.rapidez - j.rapidezAnt) / dt, -14, 14);
+  j.rapidezAnt = e.rapidez;
+  j.acel += (acelAhora - j.acel) * k6;
+  let giro = j.rumboAnt === null || dt <= 0 || j.rumbo === null ? 0 : j.rumbo - j.rumboAnt;
+  while (giro > Math.PI) giro -= Math.PI * 2;
+  while (giro < -Math.PI) giro += Math.PI * 2;
+  j.rumboAnt = j.rumbo;
+  j.ladeo += (limitar((giro / Math.max(dt, 1e-3)) * 0.07 * amp, -0.32, 0.32) - j.ladeo) * k6;
+  // Base: carrera (si va quieto, amp = 0 y queda de pie). Brazos opuestos a las piernas.
+  let musloI = (s * (0.95 + 0.2 * sprint) + 0.14) * amp * paso;
+  let musloD = (-s * (0.95 + 0.2 * sprint) + 0.14) * amp * paso;
+  let rodillaI = -(0.2 + (1.15 + 0.45 * sprint) * Math.max(0, Math.sin(j.fase - 1.2))) * amp;
+  let rodillaD = -(0.2 + (1.15 + 0.45 * sprint) * Math.max(0, Math.sin(j.fase - 1.2 + Math.PI))) * amp;
+  let hombroI = -s * (0.85 + 0.25 * sprint) * amp;
+  let hombroD = s * (0.85 + 0.25 * sprint) * amp;
+  let codoI = 0.25 + (1.2 + 0.35 * Math.max(0, -s)) * amp; // el codo se cierra más cuando la mano sube al frente
+  let codoD = 0.25 + (1.2 + 0.35 * Math.max(0, s)) * amp;
   let abrirBrazos = 0.08;
-  let inclinacion = e.retrocede ? 0.04 : 0.1 + 0.24 * amp;
-  let altura = Math.abs(Math.cos(j.fase)) * 0.05 * amp;
+  let inclinacion = e.retrocede ? 0.04 : 0.1 + 0.22 * amp + 0.1 * sprint + limitar(j.acel * 0.035, -0.14, 0.3) * (amp > 0.1 ? 1 : 0.3);
+  let altura = Math.abs(Math.cos(j.fase)) * 0.06 * amp;
   let caida = 0; // 0 de pie, 1 tendido boca abajo
-  let cabeceo = 0;
+  let cabeceo = e.retrocede ? 0 : inclinacion * 0.55; // la cabeza sigue mirando al frente aunque el torso se incline
+  let torsion = e.retrocede ? 0 : -s * 0.24 * amp; // los hombros giran al revés que la cadera
+  let rodar = 0;
 
   if (amp < 0.15) {
     if (antesDelCentro && j.deLinea) {
@@ -421,26 +501,42 @@ function posar(j, e, dt, antesDelCentro, llevaBalon) {
       musloI = 0.12; musloD = 0.06; rodillaI = -0.22; rodillaD = -0.16; inclinacion = 0.1; codoI = 0.5; codoD = 0.5;
     }
   }
-  if (llevaBalon && !e.gesto) { hombroD = 0.35; codoD = 2.0; abrirBrazos = -0.05; }
+  // Con el balón: lo aprieta contra el cuerpo y el otro brazo sigue braceando.
+  if (llevaBalon && !e.gesto) { hombroD = 0.35 + 0.12 * s * amp; codoD = 2.0; abrirBrazos = -0.05; torsion *= 0.6; }
 
   const f = e.fase;
   switch (e.gesto) {
-    case 'lanzar': { // brazo atrás y latigazo hacia adelante
+    case 'lanzar': { // paso al frente, hombros que giran, brazo atrás y latigazo hacia adelante
       const carga = suave(f / 0.4); const suelta = suave((f - 0.4) / 0.35);
       hombroD = mezclar(0.4, -1.0, carga) + suelta * 3.4; codoD = mezclar(1.6, 1.9, carga) - suelta * 1.5;
-      hombroI = 1.0 - suelta * 0.9; codoI = 0.9; inclinacion = -0.12 + suelta * 0.35;
-      musloI = 0.35; musloD = -0.25; rodillaI = -0.3; rodillaD = -0.2;
+      hombroI = 0.4 + 0.9 * carga - suelta * 1.1; codoI = 0.5 + suelta * 0.9; inclinacion = -0.14 * carga + suelta * 0.42;
+      musloI = 0.3 + 0.3 * suelta; musloD = -0.2 - 0.15 * suelta; rodillaI = -0.3 - 0.25 * suelta; rodillaD = -0.2;
+      torsion = -0.75 * carga + 1.35 * suelta; cabeceo = 0.05; altura = -0.04 * suelta;
       break;
     }
-    case 'atrapar': { const u = Math.sin(Math.min(1, f * 1.3) * Math.PI); hombroI = hombroD = 0.6 + 1.7 * u; codoI = codoD = 0.7; abrirBrazos = -0.1; altura += 0.12 * u; break; }
+    case 'atrapar': { // brazos arriba hacia el balón, mirada al cielo y un saltito
+      const u = Math.sin(Math.min(1, f * 1.3) * Math.PI);
+      hombroI = hombroD = 0.6 + 1.95 * u; codoI = codoD = 0.7 - 0.3 * u; abrirBrazos = -0.12; altura += 0.16 * u;
+      inclinacion = mezclar(inclinacion, -0.08, u); cabeceo = 0.45 * u; torsion *= 1 - u;
+      break;
+    }
     case 'bloquear': {
       const empuje = 0.15 * Math.sin(f * 30);
       hombroI = hombroD = 1.25 + empuje; codoI = codoD = 0.55; inclinacion = 0.42; altura = -0.14;
       if (amp < 0.3) { musloI = 0.6; musloD = 0.15; rodillaI = -0.95; rodillaD = -0.6; }
       break;
     }
-    case 'taclear': { const u = suave(f * 2.2); hombroI = hombroD = 1.5; codoI = codoD = 0.3; caida = 0.8 * u; abrirBrazos = 0.5; break; }
-    case 'caer': { const u = suave(f * 3); caida = u; hombroI = 1.9; hombroD = 0.6; codoD = 1.8; musloI = 0.3 * u; rodillaD = -0.5 * u; break; }
+    case 'taclear': { // se lanza con el hombro por delante y cierra los brazos alrededor del rival
+      const u = suave(f * 2.2); const cierra = suave((f - 0.12) * 4);
+      hombroI = hombroD = 1.55; codoI = codoD = 0.3 + 0.8 * cierra; caida = 0.8 * u; abrirBrazos = 0.55 - 0.75 * cierra;
+      inclinacion = 0.55 * (1 - u); musloI = 0.5 * (1 - u); musloD = -0.35 * (1 - u); rodillaD = -0.5; torsion = 0.25 * (1 - u); cabeceo = 0.35;
+      break;
+    }
+    case 'caer': { // cae de costado y rueda un poco, sin soltar el balón
+      const u = suave(f * 3);
+      caida = u; rodar = 0.55 * u; hombroI = 1.9; hombroD = 0.6; codoD = 1.8; musloI = 0.3 * u; rodillaI = -0.4 * u; rodillaD = -0.7 * u; torsion = 0; cabeceo = 0.3 * u;
+      break;
+    }
     case 'patear': {
       const u = suave(f / 0.3); const v = suave((f - 0.3) / 0.3);
       musloD = mezclar(-0.9, 1.75, u) - v * 0.9; rodillaD = mezclar(-1.3, -0.05, u); musloI = -0.1; rodillaI = -0.15;
@@ -461,8 +557,11 @@ function posar(j, e, dt, antesDelCentro, llevaBalon) {
   a(j.brazoIzq.hombro, 'x', abrirBrazos); a(j.brazoDer.hombro, 'x', -abrirBrazos);
   a(j.brazoIzq.codo, 'z', codoI); a(j.brazoDer.codo, 'z', codoD);
   a(j.torso, 'z', -inclinacion);
+  a(j.torso, 'y', torsion);
   a(j.cabeza, 'z', cabeceo);
+  a(j.cabeza, 'y', -torsion * 0.8); // la cabeza no gira con los hombros
   a(j.cuerpo, 'z', -caida * 1.5);
+  a(j.cuerpo, 'x', j.ladeo * (1 - caida) + rodar);
   j.cuerpo.position.y += ((altura + caida * 0.2) - j.cuerpo.position.y) * k;
   j.cadera.position.y += ((ALTO_CADERA - caida * 0.25) - j.cadera.position.y) * k;
 }
@@ -1087,7 +1186,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   // Lleva la escena al segundo `hasta` sin dibujar cada cuadro (para saltar o congelar) y dibuja uno.
   const saltarA = (hasta) => {
     const fin = limitar(hasta, 0, linea.duracion);
-    for (const j of v.jugadores) j.rumbo = null;
+    for (const j of v.jugadores) { j.rumbo = null; j.rumboAnt = null; j.rapidezAnt = null; j.acel = 0; j.ladeo = 0; }
     ponerPuntosTV(false);
     t = 0;
     mirada.set(linea.desde, 1, MEDIO);

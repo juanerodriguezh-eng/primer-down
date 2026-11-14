@@ -429,7 +429,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
   3. La repetición en cámara lenta dura más que los 12 s que espera el verificador: esa página ahora espera 25 s.
   4. A 360 px el sello "Repetición · cámara lenta" tapaba el marcador de TV: ahora va a la derecha en dos renglones.
 
-### Punto 1, gráficos de transmisión — HECHO Y VERIFICADO (sáb 14, 08:50)
+### Punto 1, gráficos de transmisión — HECHO Y VERIFICADO (sáb 14, 08:42)
 - **Marcador de esquina** (`js/graficatv.js` + `js/vista3d.js`): abreviaturas con el color de cada equipo, puntos de **antes** de la jugada (ESPN entrega los de después), punto que marca quién ataca, cuarto, reloj y la oportunidad ("1.ª y 10", "3.ª y gol"). Si la jugada anota, al terminar el número sube y se resalta. El texto alternativo del lienzo dice lo mismo en palabras.
 - **"3.ª y 7" sobre el pasto:** flecha del color del equipo que ataca, pintada en la cancha detrás de la línea, que se desvanece al arrancar la jugada (solo cámara de TV).
 - **Líneas azul y amarilla pintadas sobre el pasto y debajo de los jugadores:** reciben sombra, dejan ver el moteado del césped y nunca tapan a nadie.
@@ -438,7 +438,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **No comprobado:** la cortina en movimiento (solo vi el antes y el después).
 - **Sigue:** 2) luz y materiales.
 
-### Punto 2, luz y materiales de estadio + calidad automática — HECHO Y VERIFICADO (sáb 14, 09:05)
+### Punto 2, luz y materiales de estadio + calidad automática — HECHO Y VERIFICADO (sáb 14, 08:47)
 - **Addons de Three.js 0.170.0 bajados una sola vez de jsdelivr a `js/vendor/`** (13 archivos, 37 KB): `RoomEnvironment`, `EffectComposer`, `RenderPass`, `ShaderPass`, `MaskPass`, `Pass`, `UnrealBloomPass`, `OutputPass`, `AfterimagePass` y 4 sombreadores. Les cambié solo la línea de importación (`'three'` → `'./three.module.min.js'`) para que funcionen sin build. Si alguno no carga, la vista sigue sin efectos (calidad media).
 - **Luz:** entorno `RoomEnvironment` filtrado con PMREM (relleno y reflejos), tonemapping ACES, foco principal con sombras suaves, torres de focos sobre las tribunas.
 - **Materiales:** cascos con pintura brillante y barniz (`MeshPhysicalMaterial` con clearcoat) que reflejan el entorno; barras metálicas; uniformes, pasto y balón con `MeshStandardMaterial`.
@@ -448,3 +448,12 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Me corregí 2 veces:** la primera versión salió lavada y sobreexpuesta (el bloom alcanzaba a toda la cancha): bajé luces y exposición y subí el umbral del bloom; y una prueba mía de la calidad mezclaba cuadros lentos y rápidos en la misma ventana.
 - **No comprobado:** los fps reales en un celular. El navegador sin ventana dibuja por software, así que ahí la calidad automática siempre baja; eso prueba el mecanismo, no el rendimiento.
 - **Sigue:** 3) cuerpos de atleta y movimientos.
+
+### Punto 3, cuerpos de atleta y movimientos — HECHO Y VERIFICADO (sáb 14, 08:53)
+- **Proporciones (`js/vista3d.js`, `geometrias` y `crearJugador`):** torso en V (cintura angosta, pecho ancho, hombreras que sobresalen), deltoides, bíceps al aire con manga corta, cuello, glúteos, muslos gruesos y pantorrillas marcadas. Los linieros son más anchos y pesados; los demás varían un poco de estatura.
+- **Uniformes:** tela con pliegues sombreados (textura dibujada con código) y el mismo dibujo como relieve (`bumpMap`), sombreado de volumen y franja a los costados del pantalón con el color del equipo.
+- **Movimientos (`posar`):** al acelerar el torso se echa adelante y al frenar se endereza; en las curvas el cuerpo se ladea hacia adentro; los hombros giran al revés que la cadera y la cabeza sigue mirando al frente; a toda velocidad la zancada se alarga. Lanzar: paso al frente, giro de hombros y latigazo. Atrapar: brazos arriba, mirada al balón y saltito. Taclear: se lanza con el hombro y cierra los brazos. Caer: de costado y rodando. Con el balón: lo aprieta y el otro brazo bracea.
+- **Verificación:** `npm test` → 151 de 151. `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)`. Capturas miradas a ojo: `hoja-87-cuerpos.png`, `hoja-60-cuerpos.png` y `hoja-zoom.png` (ampliada).
+- **No comprobado:** los movimientos en movimiento. Solo vi instantes congelados; que la carrera, el lanzamiento y el tacleo se vean naturales al reproducirse hay que mirarlo en un navegador normal.
+- **Nota de horas:** las dos anotaciones anteriores de este turno tenían la hora adelantada; corregidas con el reloj real.
+- **Sigue:** 4) temblor de cámara en mano y estela en los pases largos.
