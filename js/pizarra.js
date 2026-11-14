@@ -50,7 +50,12 @@ export function trazoDeJugada(jugada, ctx) {
   // Jugadas con varias cosas (pase con balón suelto, carrera con penal): manda la categoría.
   if (!forma) forma = e.categoria === 'pase' ? 'pase' : e.categoria === 'patada' ? 'patada' : 'movimiento';
 
-  let hasta = esNumero(fin?.yardLine) ? limitar(fin.yardLine, 0, 100) : desde;
+  // Al cierre de un cuarto o del partido ESPN a veces manda el final en blanco (yarda 0, sin equipo ni oportunidad).
+  // Ese dato no sirve: se usa el avance de la jugada (statYardage) y, si tampoco está, el balón no se mueve.
+  const finEnBlanco = !!fin && fin.yardLine === 0 && !fin.team && !(Number(fin.down) > 0);
+  let hasta = desde;
+  if (esNumero(fin?.yardLine) && !finEnBlanco) hasta = limitar(fin.yardLine, 0, 100);
+  else if (esNumero(jugada.yardas)) hasta = limitar(desde + sentido * jugada.yardas, 0, 100);
   let resultado = '';
   if (forma === 'gol-de-campo') {
     // El dato de llegada no sirve en los goles de campo: la patada siempre va hacia los postes.

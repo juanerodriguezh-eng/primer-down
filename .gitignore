@@ -7,3 +7,6 @@ noche-*.log
 correr-noche.ps1
 node_modules/
 referencias/
+estado/
+informe.ps1
+vigilante.ps1

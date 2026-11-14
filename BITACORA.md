@@ -264,7 +264,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Punto 1, `npm test`: ya pasa, sin cambios.** `npm test` desde PowerShell y desde Git Bash con Node v24.19.0 → `tests 94 · pass 94 · fail 0`. El script de `package.json` ya era `node --test "pruebas/*.test.mjs"` (lo cambié en el turno 2); lo que falla en Node 24 es `node --test pruebas/`, que ya no usa nadie. No toqué nada.
 - Sigo con el punto 2 (modo en vivo): saco el sondeo de `js/partido.js` a un módulo puro `js/vivo.js` para poder probarlo con `node --test`.
 
-### Punto 2, modo en vivo — TERMINADO Y VERIFICADO (vie 13, 21:05)
+### Punto 2, modo en vivo — TERMINADO Y VERIFICADO (vie 13, 20:54)
 - **Nuevo `js/vivo.js`** (puro): `crearSondeo(...)` decide cuándo se vuelve a consultar. Lo saqué de `js/partido.js` para poder probarlo con un reloj falso. De paso corregí un defecto real: si la pestaña cambiaba de visibilidad con una consulta en camino, podían quedar dos consultas en paralelo; ahora nunca hay dos.
 - **Nuevo `js/simulador.js`** (puro): `simularEnCurso(summary, n, { forma })` corta un partido guardado en la jugada n, le pone estado en progreso y marcador parcial, y entrega el drive actual en **tres formas**: `con-current` (solo en `drives.current`), `current-repetido` (en `current` y también en `previous`) y `sin-current`.
 - **`js/modelo.js`, `drivesDe`:** ahora tolera las tres formas y además un `current` sin id, un `current` atrasado respecto de `previous` y jugadas con el mismo id en dos drives (nunca se cuenta una jugada dos veces).
@@ -277,3 +277,14 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
   2. No sé si el summary en vivo trae `winprobability` jugada a jugada; si no lo trae, no habrá jugadas clave ni resumen final hasta que ESPN lo complete (el partido se ve igual).
   3. Una jugada cuyo texto ESPN corrige después se vuelve a pintar en su lugar (por la firma del texto); no se duplica.
 - **Sigue: punto 3 (vista 3D con Three.js).**
+
+### Punto 3, vista 3D — parte pura LISTA Y PROBADA; todavía SIN render (vie 13, 21:15 aprox.)
+- **Three.js descargado una sola vez:** `js/vendor/three.module.min.js` (r170, 692 KB, un solo archivo sin importaciones) y `js/vendor/LICENSE-three.txt` (MIT). Nadie lo carga todavía.
+- **Nuevo `js/jugada3d.js` (puro, sin DOM ni Three.js):** `lineaDeTiempo(jugada, ctx)` arma la recreación con 22 jugadores (formación según la jugada, recorridos con tiempos, gestos como lanzar, atrapar, taclear, caer, patear, bloquear, arrodillar y celebrar, tramos del balón y eventos) y `muestrear(linea, t)` dice dónde está cada jugador y el balón en el segundo t. El render 3D solo va a consumir eso.
+  - Real (de ESPN): inicio y final de la jugada, quién ataca, tipo, nombres del texto, lado del pase o hueco de la carrera, escopeta, yardas de la patada, resultado. Ilustrado: posiciones y recorridos de cada jugador.
+  - **Números de camiseta:** el texto de ESPN no trae números. Un jugador con nombre solo lleva número si llega su dorsal real en `ctx.dorsales`; si no, va sin número (no invento el número de un jugador real). Los demás llevan números típicos de su puesto, de adorno. **Pendiente:** sacar los dorsales reales del `boxscore` del summary.
+  - **Garantía:** el balón siempre termina en `end.yardLine`; si la recreación lo deja en otro lado (touchback, balón suelto), al final se coloca en su sitio real.
+- **Nuevo `pruebas/jugada3d.test.mjs` (8 pruebas).** El barrido de los 16 partidos: `2454 de 2982 jugadas recreadas con 22 jugadores (2372 con protagonistas rotulados)`; nadie encimado al empezar, nadie fuera de la cancha, nadie a más de 11,5 yardas por segundo y todo rótulo sale del texto original.
+- **Verificación:** `npm test` → `tests 115 · pass 115 · fail 0`.
+- **Me corregí 6 veces, todas por el barrido:** el tacleador y el que intercepta se teletransportaban (19 yardas por segundo); el receptor de un pase de 52 yardas corría a 11,5 (ahora el pase sale cuando le da tiempo de llegar); un receptor salía del campo a 18,7; los touchbacks dejaban el balón en la zona de anotación y no en la yarda 35; la escapada del mariscal iba a 15,3; y **un dato malo de ESPN**: al cierre de un cuarto el final de la jugada llega en blanco (yarda 0, sin equipo) y una carrera "sin ganancia" cruzaba 99 yardas. Ese último también afectaba a la pizarra 2D de la v1: corregido en `trazoDeJugada` (`js/pizarra.js`), que ahora usa `statYardage` cuando el final viene en blanco.
+- **Falta del punto 3:** `js/vista3d.js` (cancha, cámara de transmisión, jugadores, balón, repetición), integrarlo en `partido.js` con respaldo a la pizarra 2D, capturas, dorsales reales, momentos (touchdown, bandera) y las jugadas clásicas.
