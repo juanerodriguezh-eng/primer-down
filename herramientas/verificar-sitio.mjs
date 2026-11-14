@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/vista3d.js', '/js/vendor/three.module.min.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/vendor/three.module.min.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -101,6 +101,17 @@ const PAGINAS = [
     ['todas llegan a su último paso', contar(dom, /Ver de nuevo/g) === 5 && dom.includes('Paso 4 de 4') && dom.includes('Paso 5 de 5')],
     ['rutas dibujadas', contar(dom, /class="ruta ruta-[ox]/g) > 100],
     ['texto del último paso del Hail Mary', dom.includes('Casi nunca sale… pero a veces sí')],
+  ] },
+  { nombre: 'pizarra-clasica-3d', ruta: '/pizarra.html?vista=3d&paso=final#hail-mary', gl: true, revisar: (dom) => [
+    ['el Ave María se ve con 22 jugadores en 3D', /<section class="clasica" id="hail-mary"[^>]*data-vista="3d"/.test(dom) && /<div class="vista3d"[^>]*data-jugadores="22"/.test(dom)],
+    ['llegó al final y muestra el touchdown', /<div class="vista3d"[^>]*data-estado="fin"/.test(dom) && /class="vista3d-cartel vista3d-cartel-anotacion">¡TOUCHDOWN!</.test(dom)],
+    ['botón para volver a X y O y botones de cámara', dom.includes('>Volver a la vista de X y O<') && dom.includes('>Cámara de TV<') && dom.includes('>Desde el fondo<') && dom.includes('>A ras de cancha<')],
+    ['aviso de que es una jugada de ejemplo', dom.includes('Jugada de pizarra con posiciones de ejemplo: no es de un partido real.')],
+    ['las otras cuatro siguen en X y O con su botón 3D', contar(dom, /data-vista="xo"/g) === 4 && contar(dom, />Ver con jugadores en 3D</g) === 4],
+  ] },
+  { nombre: 'pizarra-clasica-sin-webgl', ruta: '/pizarra.html?vista=3d#hail-mary', sinGl: true, revisar: (dom) => [
+    ['sin WebGL las cinco quedan en X y O', contar(dom, /data-vista="xo"/g) === 5 && !/class="vista3d"/.test(dom)],
+    ['y no se ofrece el botón 3D', !dom.includes('Ver con jugadores en 3D') && contar(dom, /class="ficha ficha-o"/g) === 55],
   ] },
   // Modo en vivo con un partido simulado (el guardado cortado a la mitad, que avanza en cada consulta).
   ...['con-current', 'current-repetido', 'sin-current'].map((forma) => ({ nombre: `en-vivo-${forma}`, ruta: `/partido.html?id=401873052&fuente=simulado&desde=60&paso=0&forma=${forma}`, revisar: (dom) => [

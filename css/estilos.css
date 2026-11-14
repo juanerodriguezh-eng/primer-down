@@ -308,6 +308,8 @@ a { color: var(--enlace); }
 .pizarra-texto { margin-top: 0.45rem; font-size: 0.93rem; }
 .pizarra .boton-chico, .clasica .boton-chico { min-height: 2.4rem; margin-top: 0.5rem; padding: 0.3rem 0.8rem; font-size: 0.88rem; }
 /* Vista 3D de la jugada */
+.clasica-3d { margin: 0.5rem 0; }
+.clasica .boton-3d { margin: 0.2rem 0 0.6rem; }
 .vista3d { margin-top: 0.5rem; }
 .vista3d-marco { position: relative; overflow: hidden; border-radius: 8px; background: #0d1424; aspect-ratio: 4 / 3; }
 @media (min-width: 560px) { .vista3d-marco { aspect-ratio: 100 / 56; } }
@@ -421,3 +423,4 @@ a { color: var(--enlace); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+.clasica-cancha[hidden], .cancha-leyenda[hidden], .clasica-3d[hidden] { display: none; }

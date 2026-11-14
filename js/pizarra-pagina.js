@@ -11,6 +11,23 @@ const sinMovimiento = () => typeof matchMedia === 'function' && matchMedia('(pre
 const suavizar = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
 const mezclar = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
+// La vista 3D es opcional: se ofrece si el navegador tiene WebGL y la persona no pidió reducir el movimiento.
+// Los módulos 3D (y Three.js) se cargan recién al tocar el botón, para que esta página siga liviana.
+let hayWebGL = null; // se averigua una sola vez
+const ofrecer3D = () => {
+  if (sinMovimiento()) return false;
+  if (hayWebGL === null) {
+    try {
+      const prueba = document.createElement('canvas');
+      const gl = prueba.getContext('webgl2') || prueba.getContext('webgl');
+      hayWebGL = !!gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch { hayWebGL = false; }
+  }
+  return hayWebGL;
+};
+let abierta3D = null; // solo una jugada a la vez puede estar en 3D (hay un único lienzo WebGL)
+
 function construirJugada(jugada) {
   const estados = estadosDe(jugada);
   let actual = 0;
@@ -111,6 +128,56 @@ function construirJugada(jugada) {
     svg.dataset.paso = String(n + 1);
   };
 
+  // ----- Vista con jugadores 3D (opcional) -----
+  let vista3d = null; // { control, linea } mientras esta jugada se ve en 3D
+  const caja3d = crear('div', { class: 'clasica-3d', hidden: true });
+  const lienzo3d = crear('div', {});
+  const nota3d = crear('p', { class: 'vista3d-aviso' });
+  caja3d.append(crear('p', { class: 'cancha-leyenda' }, jugada.id === 'onside-kick' ? 'De azul, el equipo que patea; de blanco, el que recibe.' : 'De azul, el ataque; de blanco, la defensa.'), lienzo3d);
+  const boton3d = ofrecer3D() ? crear('button', { type: 'button', class: 'boton boton-chico boton-3d', 'aria-pressed': 'false' }, 'Ver con jugadores en 3D') : null;
+
+  const volverAXyO = () => {
+    if (!vista3d && caja3d.hidden) return;
+    vista3d?.control.cerrar();
+    vista3d = null;
+    if (abierta3D === volverAXyO) abierta3D = null;
+    caja3d.hidden = true;
+    svg.removeAttribute('hidden');
+    leyenda.hidden = false;
+    if (boton3d) { boton3d.textContent = 'Ver con jugadores en 3D'; boton3d.setAttribute('aria-pressed', 'false'); }
+    seccion.dataset.vista = 'xo';
+  };
+
+  const abrir3D = async (camara = 'transmision') => {
+    abierta3D?.();
+    abierta3D = volverAXyO;
+    nota3d.remove();
+    svg.setAttribute('hidden', '');
+    leyenda.hidden = true;
+    caja3d.hidden = false;
+    boton3d.textContent = 'Volver a la vista de X y O';
+    boton3d.setAttribute('aria-pressed', 'true');
+    seccion.dataset.vista = '3d';
+    try {
+      const [{ mostrarJugada3D }, { lineaDeClasica }] = await Promise.all([import('./vista3d.js'), import('./clasica3d.js')]);
+      const linea = lineaDeClasica(jugada);
+      const control = await mostrarJugada3D(lienzo3d, linea, { porTramos: true, congelarEn: actual === estados.length - 1 ? linea.duracion : linea.tiempos[actual], camara, alFallar: () => fallo3D() });
+      if (abierta3D !== volverAXyO) { control.cerrar(); return; } // mientras cargaba, abrieron otra o volvieron a X y O
+      vista3d = { control, linea };
+    } catch {
+      fallo3D();
+    }
+  };
+
+  const fallo3D = () => {
+    volverAXyO();
+    nota3d.textContent = 'La vista 3D no está disponible en este dispositivo: seguimos con las X y las O.';
+    caja3d.before(nota3d);
+    boton3d?.remove();
+  };
+
+  boton3d?.addEventListener('click', () => (seccion.dataset.vista === '3d' ? volverAXyO() : abrir3D()));
+
   const ir = (n, animar = true) => {
     cancelAnimationFrame(cuadro);
     clearTimeout(respaldo);
@@ -118,6 +185,15 @@ function construirJugada(jugada) {
     actual = Math.max(0, Math.min(estados.length - 1, n));
     pintarTextos(actual);
     pintarRutas(actual);
+    if (vista3d) {
+      // En 3D el paso se reproduce con los jugadores; la pizarra de X y O queda al día por si vuelven a ella.
+      const { control, linea } = vista3d;
+      const ultimo = actual === estados.length - 1;
+      if (animar && avanza) control.tramo(linea.tiempos[actual - 1], ultimo ? linea.duracion : linea.tiempos[actual]);
+      else control.irA(ultimo ? linea.duracion : linea.tiempos[actual], control.camara());
+      colocar(actual, 1);
+      return;
+    }
     if (!animar || !avanza || sinMovimiento()) { colocar(actual, 1); return; }
     let arranque = 0;
     const paso = (ahora) => {
@@ -139,12 +215,15 @@ function construirJugada(jugada) {
   const termino = buscarTermino(jugada.concepto);
   const letrasUsadas = [...new Set(Object.values(jugada.jugadores).map((j) => j[3]).filter(Boolean))];
 
+  let leyenda = null;
   const seccion = crear('section', { class: 'clasica', id: jugada.id, 'aria-labelledby': `titulo-${jugada.id}` },
     crear('h2', { id: `titulo-${jugada.id}` }, jugada.nombre),
     crear('p', { class: 'clasica-resumen' }, jugada.resumen),
     crear('p', { class: 'clasica-cuando' }, crear('strong', {}, '¿Cuándo se usa? '), jugada.cuando),
+    boton3d,
     svg,
-    crear('p', { class: 'cancha-leyenda clasica-leyenda' },
+    caja3d,
+    leyenda = crear('p', { class: 'cancha-leyenda clasica-leyenda' },
       crear('span', { class: 'leyenda-ficha leyenda-o' }, jugada.id === 'onside-kick' ? 'El equipo que patea' : 'Ataque'),
       crear('span', { class: 'leyenda-ficha leyenda-x' }, jugada.id === 'onside-kick' ? 'El equipo que recibe' : 'Defensa'),
       typeof jugada.linea === 'number' ? crear('span', { class: 'leyenda leyenda-golpeo' }, 'Donde empieza la jugada') : null,
@@ -154,8 +233,9 @@ function construirJugada(jugada) {
     letrasUsadas.length ? crear('ul', { class: 'clasica-letras' }, letrasUsadas.map((l) => crear('li', {}, crear('strong', {}, l), ` = ${LETRAS[l]}`))) : null,
     termino ? crear('p', {}, crear('button', { type: 'button', class: 'etiqueta', onclick: () => abrirGlosario(jugada.concepto) }, `Ver "${nombreCorto(termino.termino)}" en el glosario`)) : null);
 
+  seccion.dataset.vista = 'xo';
   ir(0, false);
-  return { seccion, ir };
+  return { seccion, ir, abrir3D: boton3d ? abrir3D : null };
 }
 
 const zona = document.getElementById('clasicas');
@@ -172,13 +252,19 @@ montarBotonGlosario();
 
 // ?paso=final deja todas las jugadas en su último paso (enlaces y verificación automática);
 // ?paso=N las deja en el paso N.
-const pedido = new URLSearchParams(location.search).get('paso');
+const parametros = new URLSearchParams(location.search);
+const pedido = parametros.get('paso');
 if (pedido) {
   for (const jugada of CLASICAS) {
     const total = jugada.pasos.length;
     const n = pedido === 'final' ? total : Math.max(1, Math.min(total, Number(pedido) || 1));
     construidas.get(jugada.id).ir(n - 1, false);
   }
+}
+// ?vista=3d abre en 3D la jugada del enlace (#id) o la primera; con &camara=repeticion o cancha elige el ángulo.
+if (parametros.get('vista') === '3d') {
+  const id = decodeURIComponent(location.hash.slice(1));
+  await (construidas.get(id) || construidas.get(CLASICAS[0].id)).abrir3D?.(parametros.get('camara') || 'transmision');
 }
 if (location.hash.length > 1) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
 document.body.dataset.listo = '1';
