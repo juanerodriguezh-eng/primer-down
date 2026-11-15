@@ -14,7 +14,7 @@ export function esRecreable(jugada, partido) {
 const esCuartaConvertida = (j) => j.inicio?.down === 4 && ['pase', 'carrera'].includes(j.explicacion.categoria)
   && !j.explicacion.cambioDePosesion && j.explicacion.conceptos.includes('primer-down');
 const esCuartaFallada = (j) => j.explicacion.conceptos.includes('entrega-por-downs');
-const esPerdida = (j) => j.explicacion.categoria === 'perdida' || (j.explicacion.cambioDePosesion && !esCuartaFallada(j) && j.explicacion.categoria !== 'patada');
+export const esPerdida = (j) => j.explicacion.categoria === 'perdida' || (j.explicacion.cambioDePosesion && !esCuartaFallada(j) && j.explicacion.categoria !== 'patada');
 
 // Peso de una jugada cuando ESPN no entrega la probabilidad de ganar: anotaciones, pérdidas de balón,
 // cuartas oportunidades y ganancias grandes; pesa más cuanto más tarde y más cerrado esté el partido.

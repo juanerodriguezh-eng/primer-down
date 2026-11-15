@@ -603,3 +603,27 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Volví a verificar todo antes de darlo por bueno:** `npm test` → `tests 173 · pass 173 · fail 0`; `node --check` de todos los archivos de `js/` y `herramientas/` sin errores; `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` (los 5 de siempre, por ESPN).
 - **No toqué código:** lo pendiente (oír al narrador, ver "Jugadas clave" en movimiento, el partido en vivo de esta tarde y `git push`) lo tiene que hacer una persona; la lista está en el cierre de arriba.
 - **Aviso para el dueño:** los turnos programados siguen gastando cupo de Fable sin nada que hacer. Conviene desactivarlos hasta que haya un encargo nuevo.
+
+---
+
+# Encargo 5 (`ENCARGO-5.md`): gráfica de probabilidad de ganar
+
+### Turno 13 (dom 15, 08:05) — arranque
+- La sección "Encargo 5" no existía. Estado base verificado: árbol de git limpio (solo `ENCARGO-5.md` sin seguir), `npm test` → `tests 173 · pass 173 · fail 0`.
+
+### Punto 1, parte pura — LISTA Y PROBADA; todavía SIN gráfica en la página (dom 15, 08:25)
+- **Nuevo `js/probabilidad.js`** (puro, sin DOM):
+  - `serieDeProbabilidad(partido)` → un punto por cada jugada para la que ESPN entregó `winprobability` (más el pronóstico previo al partido, si ESPN lo trae): probabilidad del local y del visitante, porcentajes enteros que suman 100, cuarto, reloj, segundos de juego, marcador, texto corto y las marcas `anotacion`, `perdida` y `clave` (las de `elegirJugadasClave` de `clave.js`). Devuelve `null` si no hay al menos dos datos: **no se calcula ninguna probabilidad propia**.
+  - `fraseDeTV(serie)` → la frase de arriba. Reales: "Los Commanders llegaron a tener solo un 7 % de probabilidad de ganar (4.º cuarto, 2:19) y lo ganaron." · "Los Jaguars fueron favoritos de principio a fin: su probabilidad de ganar nunca bajó del 81 %." · "Los Saints llegaron a tener menos de un 1 % de probabilidad de ganar (Tiempo extra, 1:00) y lo ganaron." En vivo: "Ahora mismo los … tienen un 71 % de probabilidad de ganar."
+  - `lecturaDePunto`, `textoDePunto` y `descripcionDeSerie` (lo que se muestra y lo que oye un lector de pantalla), y la geometría del SVG: `escalas`, `rutaDeLinea`, `rutaDeArea`, `masCercano`, `saltarAMomento`.
+  - `coloresDeGrafica(local, visitante, fondo, texto)`: el color del equipo si se distingue del fondo (3:1); si no, el alterno o el principal aclarado; y nunca dos equipos con colores que se confundan.
+- **`js/modelo.js`:** cada jugada lleva `conProb` (ESPN dio su probabilidad) y `perdidaEspn` (`isTurnover` de ESPN), y el partido lleva `probInicial` (el pronóstico previo, solo si ese dato no es de una jugada). `js/clave.js` exporta `esPerdida`.
+- **Nuevo `pruebas/probabilidad.test.mjs` (14 pruebas)** y `node herramientas/ver-probabilidad.mjs [id] [--momentos]` para leer frases y momentos. Barrido: `2995 puntos revisados en 16 partidos` (cada punto es exactamente el dato de ESPN de esa jugada). Con el simulador en vivo, en las tres formas de `drives.current`: la serie crece sin duplicar ni mover lo ya dibujado y el eje no se reescala.
+- **Verificación:** `npm test` → `tests 187 · pass 187 · fail 0`.
+- **Me corregí 5 veces:**
+  1. Leyendo los momentos del jueves salió una "pérdida de balón" que no lo era: un fumble en el regreso de una patada de salida que recuperó el mismo equipo. El motor lo clasifica como pérdida (3 casos en 16 partidos). Crucé contra `isTurnover` de ESPN (coinciden 49 de 49 pérdidas reales) y ahora la gráfica usa el dato de ESPN. **No toqué el motor** (hoy se prueba en vivo): la tarjeta de esas jugadas sigue diciendo "cambio de posesión", que en una patada de salida es cierto.
+  2. La frase decía "solo menos de un 1 %" y "llegaron a bajar al 41 %" cuando ese 41 % era el pronóstico del arranque.
+  3. Los colores: la primera versión cambiaba el naranja de los Bengals por gris y ponía a los Colts en blanco.
+  4. **El simulador en vivo descartaba el pronóstico previo de ESPN**, y mi serie rotulaba "Antes del partido" el dato de la patada inicial. Lo encontró la prueba del simulador. Corregidos los dos (`js/simulador.js` y `probInicial`).
+  5. Otra vez (novena) un script de edición con una expresión regular falló; lo rehice con edición directa.
+- **Sigue:** la gráfica SVG interactiva (`js/grafica.js`), su sección en la página del partido y el verificador.

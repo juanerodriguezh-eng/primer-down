@@ -235,10 +235,14 @@ export function construirPartido(summary, opciones = {}) {
         fin: play?.end || null,
         yardas: typeof play?.statYardage === 'number' ? play.statYardage : null,
         probLocal,
+        // true si ESPN entregó la probabilidad de ganar de esta jugada (si no, probLocal es la de la anterior).
+        conProb: typeof p === 'number',
         cambio,
         // A quién favoreció el cambio de probabilidad.
         favorece: cambio > 0 ? local.id : cambio < 0 ? visitante.id : '',
         clave,
+        // Lo que dice ESPN sobre si la jugada fue una pérdida de balón (null si no lo dice).
+        perdidaEspn: typeof play?.isTurnover === 'boolean' ? play.isTurnover : null,
       };
       jugadas.push(jugada);
       ultima = jugada;
@@ -299,6 +303,9 @@ export function construirPartido(summary, opciones = {}) {
     ultima,
     situacion,
     probLocal,
+    // Primer valor que entrega ESPN: el pronóstico de antes de la patada inicial (null si no hay winprobability).
+    // Solo cuenta como pronóstico previo si ese primer dato no es de una jugada del partido.
+    probInicial: primera && !drivesCrudos.some((d) => (d.plays || []).some((pl) => pl?.id != null && String(pl.id) === String(primera.playId))) ? primera.homeWinPercentage : null,
   };
 }
 

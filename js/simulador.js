@@ -47,7 +47,9 @@ export function simularEnCurso(summary, n, { forma = 'con-current' } = {}) {
   }
 
   const incluidas = new Set(drives.flatMap((d) => d.plays.map((p) => String(p.id))));
-  const winprobability = (summary.winprobability || []).filter((w) => incluidas.has(String(w.playId)));
+  // Se conservan los datos de las jugadas incluidas y los que no son de ninguna jugada (el pronóstico previo al partido).
+  const todas = new Set(previos.flatMap((d) => (d.plays || []).map((p) => String(p.id))));
+  const winprobability = (summary.winprobability || []).filter((w) => incluidas.has(String(w.playId)) || !todas.has(String(w.playId)));
 
   let salida;
   if (forma === 'sin-current' || !drives.length) salida = { previous: drives };
