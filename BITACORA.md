@@ -541,3 +541,13 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Ajuste honesto en el verificador:** pedía 3 frases dichas y lo bajé a 2. Con los 6 cuadros que da el navegador sin ventana solo salen la primera y la última (el narrador nunca encima frases: si llegan varias mientras habla, dice la más reciente).
 - **No comprobado:** la voz real. No la he oído: ni cómo suena la voz del navegador, ni si el ritmo calza con la jugada. Hay que escucharlo en un navegador normal (en Chrome de escritorio y en un celular).
 - **Sigue:** 2) "Jugadas clave": parte pura con pruebas.
+
+### Punto 2, "Jugadas clave" — parte pura LISTA Y PROBADA; todavía SIN botón ni reproducción en la página (sáb 14, 23:25)
+- **Nuevo `js/clave.js`** (puro):
+  - `elegirJugadasClave(partido, 5)`: si el partido trae `winprobability`, las 5 jugadas que más movieron la probabilidad de ganar; si no, por hechos (`pesoPorHechos`: touchdown, pérdida de balón, cuarta oportunidad fallada o convertida, gol de campo, ganancia de 20 yardas o más; pesa más lo tardío y con marcador cerrado). Solo jugadas que se pueden ver (con recreación), sin pausas ni rodillas al suelo. Orden cronológico. Cada una lleva el marcador de **antes** y una línea de motivo.
+  - `motivoDeClave`: "Touchdown de los Commanders: le dio la vuelta al marcador. Subió 49 puntos la probabilidad de ganar de los Commanders." Sale del marcador real de antes y de después; no adorna.
+  - `tarjetaDeClave`, `tarjetaFinal`, `pasosDeClave` (título → jugada → repetición → cortina … → final; con "reducir movimiento", sin repetición ni cortina) e `inicioDeRepeticion` (los últimos 3 segundos).
+- **Nuevo `pruebas/clave.test.mjs` (8 pruebas)** y `node herramientas/ver-claves.mjs [id]` para leerlas. Barrido: `160 jugadas clave revisadas en 16 partidos (con y sin probabilidad)`.
+- **Verificación:** `npm test` → `tests 173 · pass 173 · fail 0`.
+- **Me corregí:** 2 pruebas fallaron por un error mío en la prueba (creí que los Commanders eran locales el jueves; son visitantes). Y por séptima vez el shell me enredó un comando con comillas: no se ejecutó nada y lo rehice con la herramienta de edición.
+- **Falta del punto 2:** `js/modoclave.js` (reproducción continua en 3D con tarjetas, repetición corta, cortina, controles y respaldo 2D), botón "▶ Jugadas clave", `&modo=clave` y el verificador.
