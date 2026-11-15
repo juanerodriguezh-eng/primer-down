@@ -189,6 +189,22 @@ export function construirPartido(summary, opciones = {}) {
     if (w?.playId != null && typeof w.homeWinPercentage === 'number') prob.set(String(w.playId), w.homeWinPercentage);
   }
 
+  // Dato malo de ESPN: en un partido ya terminado, la jugada que lo cierra (mismo reloj que el final y con el marcador
+  // final ya puesto) a veces llega con la probabilidad al revés: 100 % para el equipo que acaba de perder. Ese dato
+  // contradice el resultado, así que se descarta (la jugada queda sin probabilidad; no se inventa otra).
+  if (prob.size && estadoDe(comp.status) === 'final' && local.puntos !== visitante.puntos) {
+    const todas = drivesCrudos.flatMap((d) => (Array.isArray(d.plays) ? d.plays : []));
+    const cierre = todas[todas.length - 1];
+    const ganaLocal = local.puntos > visitante.puntos;
+    for (let i = todas.length - 1; i >= 0; i--) {
+      const pl = todas[i];
+      if (pl?.period?.number !== cierre?.period?.number || pl?.clock?.displayValue !== cierre?.clock?.displayValue) break;
+      if (pl.homeScore !== local.puntos || pl.awayScore !== visitante.puntos) break;
+      const v = pl.id != null ? prob.get(String(pl.id)) : undefined;
+      if (typeof v === 'number' && (ganaLocal ? v < 0.5 : v > 0.5)) prob.delete(String(pl.id));
+    }
+  }
+
   const drives = [];
   let marcador = { local: 0, visitante: 0 };
   // Punto de partida: el primer valor que da ESPN (el pronóstico previo al partido), no 50 %. Con 50 % la

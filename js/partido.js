@@ -15,6 +15,8 @@ import { simularEnCurso, FORMAS_EN_VIVO } from './simulador.js';
 import { relatoDeJugada } from './narrador.js';
 import { narradorDelNavegador } from './voz.js';
 import { elegirJugadasClave } from './clave.js';
+import { serieDeProbabilidad } from './probabilidad.js';
+import { crearGraficaDeProbabilidad } from './grafica.js';
 
 const parametros = new URLSearchParams(location.search);
 const idPartido = (parametros.get('id') || '').trim();
@@ -174,6 +176,66 @@ function pintarBotonClave(p) {
 }
 
 // ---------------------------------------------------------------------------
+// "Probabilidad de ganar": la gráfica interactiva (solo si ESPN entrega winprobability)
+// ---------------------------------------------------------------------------
+
+// Abre una jugada del feed desde la gráfica: la lleva a la vista y abre su recreación (3D, o pizarra 2D si no se puede).
+function abrirJugadaDelFeed(id) {
+  const tarjeta = pintadas.get(id)?.el;
+  if (!tarjeta) return;
+  const boton = tarjeta.querySelector('.boton-pizarra');
+  // Se centra el botón de la jugada: así la tarjeta no queda tapada por el título fijo del drive y la vista 3D,
+  // que se abre justo debajo, queda a la vista (fuera de pantalla se pausa).
+  try { (boton || tarjeta).scrollIntoView({ block: 'center' }); } catch { /* sin desplazamiento, se abre igual */ }
+  if (boton) {
+    if (boton.getAttribute('aria-expanded') !== 'true') boton.click();
+    try { boton.focus({ preventScroll: true }); } catch { /* sin foco */ }
+  } else {
+    tarjeta.tabIndex = -1;
+    try { tarjeta.focus({ preventScroll: true }); } catch { /* sin foco */ }
+  }
+  tarjeta.classList.add('destacada');
+  setTimeout(() => tarjeta.classList.remove('destacada'), 2600);
+  // Camino de vuelta: un botón en la tarjeta para regresar a la gráfica.
+  if (!tarjeta.querySelector('.prob-volver')) {
+    const volver = crear('button', { type: 'button', class: 'boton-enlace prob-volver' }, '↑ Volver a la gráfica');
+    volver.addEventListener('click', () => {
+      try { grafica.elemento.scrollIntoView({ block: 'start' }); } catch { /* sin desplazamiento */ }
+      grafica.enfocar();
+      volver.remove();
+    });
+    tarjeta.append(volver);
+  }
+}
+
+const grafica = crearGraficaDeProbabilidad({
+  alAbrir: abrirJugadaDelFeed,
+  sePuedeAbrir: (id) => pintadas.has(id),
+  etiquetaAbrir: (id) => (!pintadas.get(id)?.el.querySelector('.boton-pizarra') ? 'Ir a esta jugada' : puede3D() ? 'Ver esta jugada en 3D' : 'Ver esta jugada en la pizarra'),
+});
+zonaClave.before(grafica.elemento);
+
+// ?prob=m3 deja el cursor en el tercer momento importante; ?prob=abrir-m3 además abre esa jugada (enlaces directos y verificación).
+let probAlCargar = /^(abrir-)?m(\d{1,2})$/.exec(parametros.get('prob') || '');
+
+function pintarProbabilidad(p) {
+  try {
+    const serie = serieDeProbabilidad(p);
+    grafica.actualizar(serie);
+    if (serie && probAlCargar) {
+      const importantes = serie.puntos.map((x, i) => (x.importante ? i : -1)).filter((i) => i >= 0);
+      const i = importantes[Number(probAlCargar[2]) - 1];
+      const abrir = !!probAlCargar[1];
+      probAlCargar = null;
+      if (i !== undefined) { grafica.seleccionar(i); if (abrir) grafica.abrir(i); }
+    }
+  } catch {
+    // La gráfica es un extra: si algo falla, se oculta y el resto de la página sigue igual.
+    try { grafica.actualizar(null); } catch { /* nada más que hacer */ }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Feed de jugadas, agrupado por drive, lo más reciente arriba
 // ---------------------------------------------------------------------------
 
@@ -321,6 +383,7 @@ function pintar(p, { animar = true } = {}) {
   pintarResumen(p);
   pintarBotonClave(p);
   pintarFeed(p, animar);
+  pintarProbabilidad(p);
   document.body.dataset.estado = p.estado;
   document.body.dataset.listo = '1';
   // ?pizarra=abierta abre la pizarra 2D de la jugada más reciente al cargar y ?pizarra=3d abre la vista 3D
@@ -387,6 +450,8 @@ let guardadoSimulado = null;
 async function traerSimulado() {
   if (!guardadoSimulado) guardadoSimulado = await traerPartidoGuardado(idPartido);
   const summary = simularEnCurso(guardadoSimulado, jugadaSimulada, { forma: formaSimulada });
+  // &sinprob=1 simula que ESPN no entrega la probabilidad de ganar (la gráfica no debe aparecer y lo demás sigue igual).
+  if (parametros.get('sinprob') === '1') delete summary.winprobability;
   jugadaSimulada += pasoSimulado;
   return summary;
 }

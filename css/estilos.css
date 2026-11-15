@@ -228,6 +228,52 @@ a { color: var(--enlace); }
 .leyenda-golpeo::before { background: #9fd0ff; }
 .leyenda-marca::before { background: #ffd43b; }
 
+/* ---------- Probabilidad de ganar (gráfica) ---------- */
+
+.probabilidad { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 0.85rem; }
+.probabilidad[hidden] { display: none; }
+.probabilidad h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-suave); }
+.prob-frase { margin-top: 0.25rem; font-size: 1.15rem; font-weight: 800; line-height: 1.3; }
+.prob-equipos { display: flex; flex-wrap: wrap; gap: 0.15rem 1.1rem; margin-top: 0.5rem; font-size: 0.9rem; font-weight: 700; }
+.prob-donde { margin-left: 0.3rem; color: var(--texto-suave); font-weight: 400; }
+.prob-color { display: inline-block; width: 0.8rem; height: 0.8rem; margin-right: 0.4rem; border-radius: 3px; border: 1px solid var(--texto-suave); vertical-align: -0.05rem; }
+
+.prob-lienzo { margin-top: 0.5rem; border-radius: 8px; cursor: crosshair; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.prob-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.prob-marco { fill: none; stroke: var(--borde); stroke-width: 1; }
+.prob-division { stroke: var(--borde); stroke-width: 1; }
+.prob-mitad { stroke: var(--texto-suave); stroke-width: 1; stroke-dasharray: 4 4; }
+.prob-rotulo, .prob-eje { fill: var(--texto-suave); font-size: 11px; font-family: var(--fuente); }
+.prob-eje-equipo { fill: var(--texto); font-weight: 800; }
+.prob-area { fill-opacity: 0.72; stroke: none; }
+.prob-linea { fill: none; stroke: var(--texto); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.prob-punto-anotacion { fill: var(--anotacion); stroke: var(--texto); stroke-width: 1.5; }
+.prob-punto-perdida { fill: var(--perdida); stroke: var(--texto); stroke-width: 1.5; }
+.prob-halo { fill: none; stroke: var(--penal); stroke-width: 2.5; }
+.prob-halo-solo { fill: var(--superficie); }
+.prob-marca { cursor: pointer; }
+.prob-marca-elegida .prob-halo { stroke-width: 4; }
+.prob-marca-elegida .prob-punto-anotacion, .prob-marca-elegida .prob-punto-perdida { stroke-width: 2.5; }
+.prob-cursor-linea { stroke: var(--texto-suave); stroke-width: 1; }
+.prob-cursor-punto { fill: var(--texto); stroke: var(--superficie); stroke-width: 2; pointer-events: none; }
+
+.prob-lectura { margin-top: 0.5rem; padding: 0.6rem 0.7rem; min-height: 9.5rem; border-radius: 10px; background: var(--superficie-2); }
+.prob-linea-cuando { color: var(--texto-suave); font-size: 0.88rem; font-weight: 700; }
+.prob-momento { display: inline-block; margin-left: 0.5rem; padding: 0 0.5rem; border: 1px solid var(--penal); border-radius: 999px; color: var(--penal); font-size: 0.78rem; }
+.prob-momento[hidden], .prob-ver[hidden] { display: none; }
+.prob-porcentajes { display: flex; flex-wrap: wrap; gap: 0.1rem 1.1rem; margin-top: 0.2rem; font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.prob-marcador { color: var(--texto-suave); font-size: 0.88rem; }
+.prob-texto { margin-top: 0.3rem; font-size: 0.95rem; }
+.prob-ver { margin-top: 0.5rem; min-height: 2.5rem; padding: 0.3rem 0.85rem; font-size: 0.92rem; }
+
+.prob-leyenda { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; margin-top: 0.55rem; color: var(--texto-suave); font-size: 0.82rem; }
+.prob-ley::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.45rem; vertical-align: -0.02rem; }
+.prob-ley-anotacion::before { border-radius: 50%; background: var(--texto-suave); border: 1.5px solid var(--texto); }
+.prob-ley-perdida::before { background: var(--perdida); border: 1.5px solid var(--texto); transform: rotate(45deg) scale(0.85); }
+.prob-ley-clave::before { border-radius: 50%; border: 2.5px solid var(--penal); }
+.prob-volver { display: block; margin-top: 0.5rem; }
+.jugada.destacada { outline: 3px solid var(--penal); outline-offset: 2px; }
+
 /* ---------- Resumen final ---------- */
 
 .resumen { background: var(--superficie); border: 1px solid var(--acento); border-radius: var(--radio); padding: 0.85rem; }

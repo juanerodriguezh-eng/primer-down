@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de la gráfica de probabilidad · Primer Down</title>
+  <link rel="stylesheet" href="../css/estilos.css">
+</head>
+<body>
+  <!-- Prueba en un navegador de verdad lo que node --test no puede: teclado, puntero, toque sobre un punto y crecimiento
+       en vivo sin recrear nodos. La usa herramientas/verificar-sitio.mjs (lee data-fallas). No es parte del sitio. -->
+  <main class="contenedor" id="zona"></main>
+  <pre id="resultado" data-fallas="pendiente" style="white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 0.875rem; font-size: 0.8rem;">Probando…</pre>
+  <script type="module">
+    import { construirPartido } from '../js/modelo.js';
+    import { simularEnCurso } from '../js/simulador.js';
+    import { serieDeProbabilidad } from '../js/probabilidad.js';
+    import { crearGraficaDeProbabilidad } from '../js/grafica.js';
+
+    const salida = document.getElementById('resultado');
+    const lineas = []; let fallas = 0;
+    const revisar = (nombre, pasa, detalle = '') => { if (!pasa) fallas++; lineas.push(`${pasa ? 'ok   ' : 'FALLA'} ${nombre}${pasa || !detalle ? '' : ` -> ${detalle}`}`); };
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    try {
+      const summary = await (await fetch('../datos/partidos/401873052.json')).json();
+      const abiertas = [];
+      const g = crearGraficaDeProbabilidad({ alAbrir: (id) => abiertas.push(id), sePuedeAbrir: (id) => !!id, etiquetaAbrir: () => 'Ver esta jugada' });
+      document.getElementById('zona').append(g.elemento);
+      const sec = g.elemento;
+      const lienzo = sec.querySelector('.prob-lienzo');
+      const svg = sec.querySelector('svg');
+      const sel = () => Number(sec.dataset.seleccion);
+      const tecla = (key) => lienzo.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      const marcasEnOrden = () => [...sec.querySelectorAll('.prob-marca')].map((m) => m.getAttribute('data-id'));
+
+      revisar('sin serie la sección está oculta', sec.hidden === true);
+
+      // --- En vivo: crece sin recrear nodos ni duplicar puntos ---
+      const en = (n) => serieDeProbabilidad(construirPartido(simularEnCurso(summary, n)));
+      const s60 = en(60);
+      g.actualizar(s60);
+      await espera(1600); // termina la animación de entrada
+      revisar('con serie la sección aparece y queda lista', sec.hidden === false && sec.dataset.estado === 'lista', sec.dataset.estado);
+      revisar('61 puntos (60 jugadas y el pronóstico previo)', sec.dataset.puntos === '61', sec.dataset.puntos);
+      revisar('el cursor empieza en la última jugada', sel() === 60 && sec.dataset.siguiendo === '1');
+      const linea60 = sec.querySelector('.prob-linea');
+      const d60 = linea60.getAttribute('d');
+      const nodos60 = new Map([...sec.querySelectorAll('.prob-marca')].map((m) => [m.getAttribute('data-id'), m]));
+      const lugares60 = new Map([...nodos60].map(([id, m]) => [id, m.getAttribute('transform')]));
+      revisar('en la jugada 60 hay puntos marcados', nodos60.size >= 1, String(nodos60.size));
+      revisar('la frase en vivo dice quién va arriba ahora', /^(Partido parejo: ahora|Ahora) mismo los (Commanders|Giants) tienen un \d+ % de probabilidad de ganar\./.test(sec.querySelector('.prob-frase').textContent), sec.querySelector('.prob-frase').textContent);
+
+      g.actualizar(en(63)); g.actualizar(en(63)); // dos sondeos seguidos con lo mismo
+      const s90 = en(90);
+      g.actualizar(s90);
+      revisar('al crecer, la línea es el mismo nodo (no se borra y se vuelve a crear)', sec.querySelector('.prob-linea') === linea60 && sec.querySelectorAll('.prob-linea').length === 1);
+      revisar('la línea nueva empieza igual que la anterior (lo ya dibujado no se mueve)', linea60.getAttribute('d').startsWith(d60));
+      const siguen = [...nodos60].filter(([id]) => s90.puntos.some((p) => p.id === id && p.importante));
+      revisar('los puntos que ya estaban son los mismos nodos y están en el mismo lugar', siguen.length >= 1 && siguen.every(([id, m]) => sec.querySelector(`.prob-marca[data-id="${id}"]`) === m && m.getAttribute('transform') === lugares60.get(id)), String(siguen.length));
+      revisar('solo se quita una marca si dejó de ser momento importante (una jugada clave que ya no está entre las 5)', [...nodos60].filter(([id]) => !siguen.some(([x]) => x === id)).every(([id]) => !sec.querySelector(`.prob-marca[data-id="${id}"]`)));
+      revisar('ningún punto duplicado', new Set(marcasEnOrden()).size === marcasEnOrden().length && marcasEnOrden().length === s90.puntos.filter((p) => p.importante).length, marcasEnOrden().join(','));
+      revisar('mientras se sigue el partido, el cursor avanza a la jugada nueva', sel() === 90 && sec.dataset.siguiendo === '1', String(sel()));
+
+      tecla('ArrowLeft'); tecla('ArrowLeft');
+      const elegida = s90.puntos[88].id;
+      revisar('flecha izquierda retrocede jugada por jugada', sel() === 88 && sec.dataset.siguiendo === '0', String(sel()));
+      const s120 = en(120);
+      g.actualizar(s120);
+      revisar('si la persona eligió una jugada, un sondeo nuevo no le mueve el cursor', sel() === 88 && s120.puntos[sel()].id === elegida && sec.dataset.puntos === '121', String(sel()));
+      tecla('End');
+      revisar('Fin vuelve a la última jugada y se retoma el seguimiento', sel() === 120 && sec.dataset.siguiendo === '1');
+
+      // --- Partido completo: teclado, puntero y toque ---
+      const completo = construirPartido(summary);
+      const s = serieDeProbabilidad(completo);
+      g.actualizar(s);
+      const importantes = s.puntos.map((p, i) => (p.importante ? i : -1)).filter((i) => i >= 0);
+      revisar('partido completo: 189 puntos y 11 marcados', sec.dataset.puntos === '189' && marcasEnOrden().length === 11 && sec.dataset.momentos === '11', `${sec.dataset.puntos} / ${marcasEnOrden().length}`);
+      revisar('la frase final sale de los datos', sec.querySelector('.prob-frase').textContent === 'Los Commanders llegaron a tener solo un 7 % de probabilidad de ganar (4.º cuarto, 2:19) y lo ganaron.');
+      tecla('Home');
+      revisar('Inicio va al primer punto', sel() === 0 && lienzo.getAttribute('aria-valuenow') === '1');
+      revisar('el lector de pantalla recibe el punto en palabras', lienzo.getAttribute('aria-valuetext') === 'Antes del partido. Commanders 0, Giants 0. Commanders 50 %, Giants 50 %. Pronóstico antes de la patada inicial.', lienzo.getAttribute('aria-valuetext'));
+      tecla('ArrowRight');
+      revisar('flecha derecha avanza una jugada', sel() === 1);
+      tecla('ArrowUp');
+      revisar('flecha arriba salta al siguiente momento importante', sel() === importantes[0], String(sel()));
+      tecla('PageUp');
+      revisar('AvPág también', sel() === importantes[1]);
+      tecla('ArrowDown');
+      revisar('flecha abajo vuelve al momento anterior', sel() === importantes[0]);
+      const lectura = sec.querySelector('.prob-lectura').textContent;
+      revisar('la lectura muestra cuarto, reloj, marcador, porcentajes y la jugada', lectura.includes('2.º cuarto · 14:07') && lectura.includes('Anotación') && lectura.includes('Commanders 56 %') && lectura.includes('Giants 44 %') && lectura.includes('Marcador: Commanders 3 · Giants 0') && lectura.includes('Gol de campo de 46 yardas'), lectura);
+      revisar('botón para ver la jugada elegida', sec.querySelector('.prob-ver').hidden === false && sec.querySelector('.prob-ver').textContent === 'Ver esta jugada');
+      tecla('Enter');
+      revisar('Enter abre la jugada elegida', abiertas.length === 1 && abiertas[0] === s.puntos[importantes[0]].id, abiertas.join(','));
+      tecla(' ');
+      revisar('la barra espaciadora también', abiertas.length === 2);
+      sec.querySelector('.prob-ver').click();
+      revisar('el botón abre la misma jugada', abiertas.length === 3 && abiertas[2] === s.puntos[importantes[0]].id);
+      tecla('Home'); tecla('Enter');
+      revisar('el pronóstico previo no es una jugada: no abre nada y no ofrece botón', abiertas.length === 3 && sec.querySelector('.prob-ver').hidden === true);
+      tecla('a');
+      revisar('otras teclas no hacen nada', sel() === 0);
+
+      // Puntero: coordenadas reales de pantalla a partir de dónde quedó dibujada cada marca.
+      const caja = () => svg.getBoundingClientRect();
+      const lugar = (id) => { const m = /translate\(([\d.]+) ([\d.]+)\)/.exec(sec.querySelector(`.prob-marca[data-id="${id}"]`).getAttribute('transform')); const [, , vw, vh] = svg.getAttribute('viewBox').split(' ').map(Number); return { x: caja().left + Number(m[1]) * caja().width / vw, y: caja().top + Number(m[2]) * caja().height / vh }; };
+      const puntero = (tipo, x, y) => lienzo.dispatchEvent(new (tipo === 'click' ? MouseEvent : PointerEvent)(tipo, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+      const k7 = importantes[6]; const p7 = s.puntos[k7];
+      const l7 = lugar(p7.id);
+      puntero('pointermove', l7.x, caja().top + 5);
+      revisar('al pasar el puntero sobre un momento importante se elige ese momento (no la pausa que comparte su reloj)', sel() === k7, `${sel()} vs ${k7}`);
+      puntero('pointermove', caja().left + caja().width / 2, caja().top + 5);
+      revisar('al pasar el puntero por el centro se elige una jugada de la mitad del partido', Math.abs(s.puntos[sel()].t - 1800) <= 200, String(s.puntos[sel()].t));
+      puntero('pointerdown', l7.x + 1, l7.y + 2); puntero('click', l7.x + 1, l7.y + 2);
+      revisar('tocar un punto marcado lo elige y abre esa jugada', sel() === k7 && abiertas.length === 4 && abiertas[3] === p7.id, `${sel()} ${abiertas.at(-1)}`);
+      revisar('el punto elegido queda resaltado', sec.querySelector('.prob-marca-elegida')?.getAttribute('data-id') === p7.id);
+      const antes = abiertas.length;
+      puntero('pointerdown', caja().left + 60, caja().top + 20); puntero('click', caja().left + 60, caja().top + 20);
+      revisar('tocar lejos de un punto solo mueve el cursor', abiertas.length === antes && sel() !== k7);
+      revisar('el cursor quedó dentro del dibujo', (() => { const c = sec.querySelector('.prob-cursor-linea'); const x = Number(c.getAttribute('x1')); return x >= 0 && x <= caja().width; })());
+
+      // Accesibilidad de la estructura.
+      revisar('el lienzo se puede enfocar y se anuncia como control deslizante', lienzo.tabIndex === 0 && lienzo.getAttribute('role') === 'slider' && lienzo.getAttribute('aria-valuemax') === '189');
+      const desc = document.getElementById(lienzo.getAttribute('aria-describedby'));
+      revisar('tiene una descripción para lectores de pantalla', !!desc && desc.textContent.includes('Gráfica de la probabilidad de ganar') && desc.textContent.includes('flechas') && desc.textContent.includes('11 momentos importantes'), desc?.textContent);
+      lienzo.focus();
+      const foco = getComputedStyle(lienzo);
+      revisar('foco visible al llegar con el teclado', document.activeElement === lienzo && (lienzo.matches(':focus-visible') ? foco.outlineStyle !== 'none' && parseFloat(foco.outlineWidth) >= 2 : true), `${foco.outlineStyle} ${foco.outlineWidth}`);
+      revisar('el dibujo cabe en su caja', svg.getBoundingClientRect().width <= lienzo.getBoundingClientRect().width + 1);
+
+      // Repetición hacia atrás y partido sin dato.
+      g.actualizar(en(30));
+      revisar('si la serie se acorta (repetición hacia atrás) sobran cero puntos', sec.dataset.puntos === '31' && marcasEnOrden().every((id) => en(30).puntos.some((p) => p.id === id && p.importante)));
+      g.actualizar(null);
+      revisar('si ESPN deja de traer la probabilidad, la sección se oculta', sec.hidden === true && sec.dataset.puntos === '0');
+      g.actualizar(s);
+      revisar('y vuelve a aparecer cuando hay datos', sec.hidden === false && sec.dataset.puntos === '189');
+    } catch (err) {
+      fallas++;
+      lineas.push(`FALLA error inesperado -> ${err?.stack || err}`);
+    }
+    salida.textContent = lineas.join('\n');
+    salida.dataset.total = String(lineas.length);
+    salida.dataset.fallas = String(fallas);
+  </script>
+</body>
+</html>

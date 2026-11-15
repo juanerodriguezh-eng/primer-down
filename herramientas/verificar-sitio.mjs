@@ -26,12 +26,13 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/narrador.js', '/js/voz.js', '/js/clave.js', '/js/modoclave.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/narrador.js', '/js/voz.js', '/js/clave.js', '/js/modoclave.js', '/js/probabilidad.js', '/js/grafica.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
 const contar = (texto, re) => (texto.match(re) || []).length;
 const idsDeJugadas = (dom) => [...dom.matchAll(/<article class="jugada [^"]*" data-id="([^"]+)"/g)].map((m) => m[1]);
+const idsDeMarcas = (dom) => [...dom.matchAll(/<g class="prob-marca[^"]*" data-id="([^"]+)"/g)].map((m) => m[1]);
 
 // Cada página: qué debe aparecer en el DOM ya pintado. `red: true` = depende de que ESPN responda.
 const PAGINAS = [
@@ -205,6 +206,49 @@ const PAGINAS = [
     ['la página está en modo claro', /<html[^>]*data-tema="claro"/.test(dom)],
     ['5 jugadas clásicas', contar(dom, /<section class="clasica"/g) === 5],
   ] },
+  // Gráfica "Probabilidad de ganar": partido completo, abrir una jugada desde un punto (3D y respaldo 2D), en vivo
+  // simulado, sin dato de ESPN, modo claro, "reducir movimiento" y la prueba de teclado y puntero en el navegador.
+  { nombre: 'probabilidad-final', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188&prob=m7', revisar: (dom) => [
+    ['la sección aparece con 189 puntos, 11 momentos marcados y la animación terminada', /<section class="probabilidad"[^>]*data-puntos="189"/.test(dom) && /<section class="probabilidad"[^>]*data-momentos="11"/.test(dom) && /<section class="probabilidad"[^>]*data-estado="lista"/.test(dom) && !/<section class="probabilidad"[^>]*hidden/.test(dom)],
+    ['frase de arriba con datos reales', dom.includes('<p class="prob-frase">Los Commanders llegaron a tener solo un 7 % de probabilidad de ganar (4.º cuarto, 2:19) y lo ganaron.</p>')],
+    ['una sola línea, 11 puntos sin repetir, línea del 50 % y 4 cuartos', contar(dom, /<path class="prob-linea"/g) === 1 && idsDeMarcas(dom).length === 11 && new Set(idsDeMarcas(dom)).size === 11 && contar(dom, /class="prob-mitad"/g) === 1 && contar(dom, /class="prob-rotulo"/g) === 4 && contar(dom, /class="prob-division"/g) === 3],
+    ['cada equipo con su nombre y su lado', /class="prob-equipo-nombre">Commanders<\/span><span class="prob-donde">arriba</.test(dom) && /class="prob-equipo-nombre">Giants<\/span><span class="prob-donde">abajo</.test(dom)],
+    ['?prob=m7 deja el cursor en el séptimo momento, con su lectura completa', dom.includes('<span class="prob-cuando">4.º cuarto · 8:13</span><span class="prob-momento">Anotación y Jugada clave</span>') && dom.includes('<span>Commanders 29 %</span>') && dom.includes('<span>Giants 71 %</span>') && dom.includes('<p class="prob-marcador">Marcador: Commanders 17 · Giants 21</p>') && dom.includes('<p class="prob-texto">I. Likely atrapa el pase profundo')],
+    ['se maneja con teclado y se describe para lectores de pantalla', /<div class="prob-lienzo" tabindex="0" role="slider"[^>]*aria-valuemax="189"[^>]*aria-valuetext="Anotación y Jugada clave\. 4\.º cuarto, 8:13\. Commanders 17, Giants 21\. Commanders 29 %, Giants 71 %\./.test(dom) && /<p class="solo-lectores" id="prob-1-descripcion">Gráfica de la probabilidad de ganar de cada equipo, jugada por jugada \(189 puntos\)\./.test(dom)],
+    ['botón para ver la jugada elegida y nada abierto todavía', /<button type="button" class="boton prob-ver">Ver esta jugada en (3D|la pizarra)<\/button>/.test(dom) && !dom.includes('Volver a la gráfica')],
+  ] },
+  { nombre: 'probabilidad-abre-3d', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188&prob=abrir-m7', gl: true, tiempo: 20000, revisar: (dom) => [
+    ['tocar un punto abre esa jugada en la vista 3D', /<div class="vista3d"[^>]*data-jugadores="22"/.test(dom) && /class="vista3d-rotulo[^"]*"[^>]*>[^<]*Likely</.test(dom)],
+    ['es la tarjeta de esa jugada y ofrece volver a la gráfica', /<article class="jugada [^"]*" data-id="[^"]+"[^>]*>(?:(?!<\/article>)[\s\S])*I\. Likely atrapa el pase profundo(?:(?!<\/article>)[\s\S])*class="vista3d"(?:(?!<\/article>)[\s\S])*Volver a la gráfica/.test(dom)],
+    ['solo se abrió una jugada', contar(dom, /class="vista3d"/g) === 1 && contar(dom, /Volver a la gráfica/g) === 1],
+  ] },
+  { nombre: 'probabilidad-abre-sin-webgl', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188&prob=abrir-m7', sinGl: true, revisar: (dom) => [
+    ['sin WebGL el punto abre la pizarra 2D de esa jugada', /<div class="pizarra" data-forma="pase">/.test(dom) && /class="cancha pizarra-cancha"[^>]*data-estado="fin"/.test(dom) && !/class="vista3d"/.test(dom)],
+    ['el botón de la gráfica lo dice', dom.includes('>Ver esta jugada en la pizarra</button>')],
+  ] },
+  { nombre: 'probabilidad-en-vivo', ruta: '/partido.html?id=401873052&fuente=simulado&desde=60&paso=3&cada=1.5', revisar: (dom) => [
+    ['la gráfica creció con los sondeos (un punto por jugada, más el pronóstico previo)', Number(/<section class="probabilidad"[^>]*data-puntos="(\d+)"/.exec(dom)?.[1]) === idsDeJugadas(dom).length + 1 && idsDeJugadas(dom).length > 66],
+    ['sin duplicar: una sola línea y cada punto marcado una sola vez', contar(dom, /<path class="prob-linea"/g) === 1 && idsDeMarcas(dom).length >= 2 && new Set(idsDeMarcas(dom)).size === idsDeMarcas(dom).length],
+    ['el cursor sigue a la última jugada', /<section class="probabilidad"[^>]*data-siguiendo="1"/.test(dom) && Number(/<section class="probabilidad"[^>]*data-seleccion="(\d+)"/.exec(dom)?.[1]) === idsDeJugadas(dom).length],
+    ['frase de partido en curso', /<p class="prob-frase">(Partido parejo: ahora|Ahora) mismo los (Commanders|Giants) tienen un \d+ % de probabilidad de ganar\./.test(dom)],
+    ['sigue en vivo y sin jugadas duplicadas', dom.includes('class="sello sello-vivo"') && new Set(idsDeJugadas(dom)).size === idsDeJugadas(dom).length],
+  ] },
+  { nombre: 'probabilidad-sin-dato', ruta: '/partido.html?id=401873052&fuente=simulado&desde=60&paso=3&cada=1.5&sinprob=1', revisar: (dom) => [
+    ['si ESPN no trae la probabilidad, la sección no aparece', /<section class="probabilidad"[^>]*hidden=""/.test(dom) && /<section class="probabilidad"[^>]*data-puntos="0"/.test(dom)],
+    ['el resto del modo en vivo sigue igual', dom.includes('class="sello sello-vivo"') && idsDeJugadas(dom).length > 66 && new Set(idsDeJugadas(dom)).size === idsDeJugadas(dom).length && dom.includes('Situación actual')],
+  ] },
+  { nombre: 'probabilidad-sin-movimiento', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188&prob=abrir-m7', gl: true, banderas: ['--force-prefers-reduced-motion'], revisar: (dom) => [
+    ['con "reducir movimiento" la gráfica se muestra completa y sin animación', /<section class="probabilidad"[^>]*data-puntos="189"/.test(dom) && /<section class="probabilidad"[^>]*data-estado="lista"/.test(dom)],
+    ['y el punto abre la pizarra 2D (sin vista 3D)', /<div class="pizarra" data-forma="pase">/.test(dom) && !/class="vista3d"/.test(dom)],
+  ] },
+  { nombre: 'probabilidad-modo-claro', ruta: '/partido.html?id=401873052&fuente=guardado&tema=claro', revisar: (dom) => [
+    ['en modo claro y por el camino del modo en vivo, la gráfica completa', /<html[^>]*data-tema="claro"/.test(dom) && /<section class="probabilidad"[^>]*data-puntos="189"/.test(dom) && idsDeMarcas(dom).length === 11],
+    ['los colores de los equipos son los que se ven sobre fondo blanco', /class="prob-color" aria-hidden="true" style="background: rgb\(90, 20, 20\);"/.test(dom) && /class="prob-color" aria-hidden="true" style="background: rgb\(0, 60, 127\);"/.test(dom)],
+  ] },
+  { nombre: 'probabilidad-teclado-y-puntero', ruta: '/herramientas/prueba-grafica.html', revisar: (dom) => [
+    ['la prueba en el navegador (teclado, puntero, toque y crecimiento en vivo) pasa completa', /<pre id="resultado"[^>]*data-fallas="0"/.test(dom) && /<pre id="resultado"[^>]*data-total="(4[3-9]|[5-9]\d)"/.test(dom)],
+    ...[...dom.matchAll(/^FALLA (.*)$/gm)].map((m) => [`prueba en el navegador: ${m[1].slice(0, 200)}`, false]),
+  ] },
   { nombre: 'partido-sin-id', ruta: '/partido.html', revisar: (dom) => [
     ['mensaje claro', dom.includes('Falta indicar qué partido quieres ver')],
   ] },
@@ -253,7 +297,7 @@ try {
     if (CAPTURAS) mkdirSync(path.join(RAIZ, 'herramientas', 'capturas'), { recursive: true });
     const base = ['--headless=new', '--no-first-run', '--hide-scrollbars', `--user-data-dir=${perfil}`, '--virtual-time-budget=12000', '--enable-logging=stderr', '--v=0'];
     for (const pagina of PAGINAS) {
-      const comunes = [...base.map((x) => (pagina.tiempo && x.startsWith('--virtual-time-budget') ? `--virtual-time-budget=${pagina.tiempo}` : x)), ...(pagina.gl ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : ['--disable-gpu']), ...(pagina.sinGl ? ['--disable-3d-apis'] : [])];
+      const comunes = [...base.map((x) => (pagina.tiempo && x.startsWith('--virtual-time-budget') ? `--virtual-time-budget=${pagina.tiempo}` : x)), ...(pagina.gl ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : ['--disable-gpu']), ...(pagina.sinGl ? ['--disable-3d-apis'] : []), ...(pagina.banderas || [])];
       console.log(`Página: ${pagina.nombre}  (${pagina.ruta})`);
       const r = spawnSync(navegador, [...comunes, '--window-size=360,800', '--dump-dom', BASE + pagina.ruta], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 90000 });
       const dom = r.stdout || '';

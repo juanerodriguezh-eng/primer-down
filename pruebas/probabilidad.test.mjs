@@ -97,7 +97,38 @@ test('tiempo extra: la gráfica se alarga y agrega su división', () => {
   assert.equal(s.total, 4200);
   assert.deepEqual(s.cuartos.map((c) => c.rotulo), ['1.º', '2.º', '3.º', '4.º', 'TE']);
   assert.ok(s.puntos.at(-1).t > 3600);
-  assert.equal(fraseDeTV(s), 'Los Saints llegaron a tener menos de un 1 % de probabilidad de ganar (Tiempo extra, 1:00) y lo ganaron.');
+  assert.equal(fraseDeTV(s), 'Los Saints llegaron a tener solo un 13 % de probabilidad de ganar (4.º cuarto, 2:54) y lo ganaron.');
+});
+
+test('dato malo de ESPN: la jugada que cierra un partido no puede dar 100 % al equipo que acaba de perder', () => {
+  // Browns 22, Saints 23: el touchdown final de los Browns (sin conversión, se acabó el partido) llega de ESPN con
+  // 0 % para los Saints, que ganaron. Ese dato se descarta: la jugada queda sin punto y no cuenta como "jugada clave".
+  const crudo = leer('401873039');
+  const p = construirPartido(crudo);
+  const jugadas = p.drives.flatMap((d) => d.jugadas);
+  const cierre = jugadas.find((j) => j.periodo === 5 && j.reloj === '1:00' && j.explicacion.anotacion);
+  assert.equal(crudo.winprobability.find((w) => String(w.playId) === cierre.id).homeWinPercentage, 0); // así llega
+  assert.equal(cierre.conProb, false);
+  assert.equal(cierre.cambio, 0);
+  assert.equal(cierre.clave, false);
+  const s = serieDeProbabilidad(p);
+  assert.ok(!s.puntos.some((x) => x.id === cierre.id));
+  assert.equal(s.puntos.at(-1).pct.local, 100);
+  assert.ok(s.puntos.slice(-5).every((x) => x.local > 0.8), 'el final de la línea ya no salta al lado del perdedor');
+  // En los 16 partidos: después de quedar el marcador final en el último instante, nadie "gana" en la gráfica si perdió.
+  for (const id of IDS) {
+    const q = construirPartido(leer(id));
+    const serie = serieDeProbabilidad(q);
+    const ganaLocal = q.local.puntos > q.visitante.puntos;
+    const ultimo = serie.puntos.at(-1);
+    for (const x of serie.puntos.filter((y) => y.t === ultimo.t && y.marcador.local === q.local.puntos && y.marcador.visitante === q.visitante.puntos)) {
+      assert.ok(ganaLocal ? x.local >= 0.5 : x.local <= 0.5, `${id}: ${x.cuando} contradice el resultado`);
+    }
+  }
+  // En vivo no se descarta nada: no se conoce el resultado.
+  const enVivo = construirPartido(simularEnCurso(crudo, contarJugadas(crudo) - 1));
+  assert.equal(enVivo.estado, 'en-vivo');
+  assert.equal(enVivo.drives.flatMap((d) => d.jugadas).find((j) => j.id === cierre.id).conProb, true);
 });
 
 test('sin winprobability no hay serie (la sección no aparece) y no se calcula nada propio', () => {
@@ -160,6 +191,14 @@ test('en vivo (simulador): la serie crece con cada sondeo, sin duplicar ni cambi
       assert.match(fraseDeTV(s), /^(Partido parejo: ahora|Ahora) mismo los (Commanders|Giants) tienen un \d+ % de probabilidad de ganar\./);
       previa = s;
     }
+  }
+  // En vivo solo se marca como jugada clave lo que movió 5 puntos o más (al final del partido, las 5 de clave.js).
+  for (const n of [20, 60, 120]) {
+    const p = construirPartido(simularEnCurso(jueves, n));
+    const porId = new Map(p.drives.flatMap((d) => d.jugadas).map((j) => [j.id, j]));
+    const marcadas = serieDeProbabilidad(p).puntos.filter((x) => x.clave);
+    assert.ok(marcadas.length <= 5);
+    for (const x of marcadas) assert.ok(Math.abs(porId.get(x.id).cambio) >= 0.05, `jugada ${n}: clave con cambio mínimo`);
   }
   // Las tres formas de drives.current dan la misma serie.
   const [a, b, c] = FORMAS_EN_VIVO.map((forma) => serieDeProbabilidad(construirPartido(simularEnCurso(jueves, 120, { forma }))));
@@ -240,6 +279,12 @@ test('recorrido: el punto más cercano y los saltos entre momentos importantes',
   const i = masCercano(s.puntos, 1800);
   assert.ok(Math.abs(s.puntos[i].t - 1800) <= 60);
   assert.equal(masCercano([], 10), -1);
+  // Varias jugadas en el mismo segundo de reloj: gana la importante; si ninguna lo es, la última.
+  const mismas = [{ t: 10 }, { t: 50, importante: false }, { t: 50, importante: true }, { t: 50, importante: false }, { t: 90 }];
+  assert.equal(masCercano(mismas, 52), 2);
+  assert.equal(masCercano(mismas.map((x) => ({ t: x.t })), 52), 3);
+  // En el partido real: sobre cada momento importante el puntero elige ese momento, no la pausa que comparte su reloj.
+  for (const [k, x] of s.puntos.entries()) if (x.importante) assert.ok(s.puntos[masCercano(s.puntos, x.t)].importante, `en ${x.cuando} elige ${k}`);
   const primero = saltarAMomento(s.puntos, 0, 1);
   assert.ok(s.puntos[primero].importante);
   assert.equal(s.puntos[primero].cuando, '2.º cuarto · 14:07');

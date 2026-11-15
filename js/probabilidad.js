@@ -7,6 +7,7 @@ import { elegirJugadasClave, esPerdida } from './clave.js';
 const SEGUNDOS_CUARTO = 900;
 const SEGUNDOS_EXTRA = 600;
 const LARGO_TEXTO = 150;
+const UMBRAL_CLAVE_EN_VIVO = 0.05;
 
 // Segundos de juego transcurridos según el cuarto y el reloj. Nunca retrocede: si el dato viene mal o en
 // blanco (pasa al cierre de un cuarto), el punto se queda donde iba el anterior.
@@ -51,7 +52,10 @@ export function serieDeProbabilidad(partido) {
   if (!jugadas.some((j) => j.conProb)) return null;
 
   let claves = new Set();
-  try { claves = new Set(elegirJugadasClave(partido, 5).filter((c) => c.criterio === 'probabilidad').map((c) => c.id)); } catch { claves = new Set(); }
+  // Con el partido en curso solo se marca como clave lo que de verdad pesó (5 puntos o más), igual que el botón
+  // "Jugadas clave": al principio de un partido "las 5 que más movieron" pueden ser movimientos mínimos.
+  const pesa = (c) => partido.estado === 'final' || Math.abs(c.cambio || 0) >= UMBRAL_CLAVE_EN_VIVO;
+  try { claves = new Set(elegirJugadasClave(partido, 5).filter((c) => c.criterio === 'probabilidad' && pesa(c)).map((c) => c.id)); } catch { claves = new Set(); }
 
   const puntos = [];
   const vistos = new Set();
@@ -208,12 +212,13 @@ export function rutaDeArea(puntos, e) {
   return `${rutaDeLinea(puntos, e)}L${e.x(puntos[puntos.length - 1].t)} ${r1(e.medio)}L${e.x(puntos[0].t)} ${r1(e.medio)}Z`;
 }
 
-// Índice del punto más cercano a un instante t (si hay varios en el mismo instante, el último).
+// Índice del punto más cercano a un instante t. Varias jugadas pueden compartir el mismo segundo de reloj (una
+// intercepción y el tiempo fuera que le sigue): entre ellas gana la que es un momento importante y, si no hay, la última.
 export function masCercano(puntos, t) {
   let mejor = -1; let d = Infinity;
   for (let i = 0; i < puntos.length; i++) {
     const di = Math.abs(puntos[i].t - t);
-    if (di <= d) { d = di; mejor = i; }
+    if (di < d || (di === d && (puntos[i].importante || !puntos[mejor].importante))) { d = di; mejor = i; }
   }
   return mejor;
 }
