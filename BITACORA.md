@@ -651,14 +651,14 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - En la tarjeta de título de cada jugada clave va una mini gráfica (240 × 64) con la línea de todo el partido y un punto amarillo en esa jugada. Parte pura: `miniDeClave(serie, id)` en `js/probabilidad.js`; dibujo en `js/modoclave.js` (`miniGrafica`). Si ESPN no trae la probabilidad, si la jugada no tiene dato o si algo falla, la tarjeta sale como antes, sin mini gráfica.
 - **Verificación:** `npm test` → `tests 189 · pass 189 · fail 0` (prueba nueva: 60 o más mini gráficas en los 16 partidos, el punto siempre sobre la línea y dentro de la caja). `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` en 44 páginas (la página `jugadas-clave-titulo` ahora exige la mini gráfica con su descripción). Captura `clave-titulo.png` mirada a ojo a 360 px.
 
-### Punto 4, cierre — HECHO (dom 15, 09:35)
+### Punto 4, cierre — HECHO (dom 15, 09:31)
 - `docs/probabilidad.png` (la gráfica del partido del jueves a 720 px, con el cursor en el touchdown de los Giants del 4.º cuarto).
 - `README.md`: una línea nueva ("Probabilidad de ganar"), la captura y cifras al día (189 pruebas, 44 páginas, 14 turnos).
 - `PROMPTS-FABLE.md`: encargo 5 con su resultado y sus correcciones honestas; tabla y números al día.
 
 ---
 
-## CIERRE DEL ENCARGO 5 (domingo 15 nov, 09:35)
+## CIERRE DEL ENCARGO 5 (domingo 15 nov, 09:31)
 
 ### Qué cambió
 1. **Gráfica "Probabilidad de ganar"** en la página del partido (encima de "▶ Jugadas clave"): SVG propio, frase de TV arriba, línea entre los dos equipos con sus colores, guía del 50 %, cuartos y puntos en anotaciones, pérdidas de balón y jugadas clave. Interactiva con dedo, mouse y teclado; un punto abre su jugada en 3D (o en la pizarra 2D). En vivo crece con cada sondeo sin recrear nada. Archivos: `js/probabilidad.js` (puro), `js/grafica.js`, `js/partido.js`, `css/estilos.css`.
@@ -678,3 +678,15 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 2. **`git push`** para publicar (lo publicado sigue siendo el encargo 4).
 3. **Esta tarde, con partidos en vivo:** comprobar que la gráfica aparece y crece. Si ESPN no entrega `winprobability` en vivo, la sección simplemente no aparece y lo demás sigue igual.
 4. Sin cambios: lector de pantalla real, fps en un celular, oír al narrador.
+
+### Comprobación con un partido REAL en vivo (dom 15, 09:37) — primera vez
+- A las 9:30 empezó Patriots–Lions (id `401873053`). Leí su summary de ESPN con Node (no con el navegador sin ventana, al que ESPN le responde 403) y lo pasé por `construirPartido` y `serieDeProbabilidad`. Herramienta nueva: `node herramientas/ver-en-vivo.mjs 401873053`.
+- **Resultado a 12:03 del 1.er cuarto, con 7 jugadas:**
+  - **`winprobability` SÍ llega en vivo**, jugada a jugada (8 datos: 7 jugadas y el pronóstico previo, 52,8 %). Serie: 8 puntos, tiempo sin retroceder, ningún punto repetido. Frase: "Partido parejo: ahora mismo los Patriots tienen un 55 % de probabilidad de ganar."
+  - **`drives.current` existe y viene repetido en `drives.previous`** (14 jugadas crudas, 7 distintas): es la forma `current-repetido` del simulador. El modelo dio 1 drive y 7 jugadas, sin duplicar.
+  - **`boxscore.players` llega desde el primer cuarto** (dorsales de los dos equipos) y **la última jugada trae su `end`** ("1st & 10 at DET 33").
+  - El summary no trae `situation`, como se suponía.
+- Con esto quedan resueltas las tres dudas abiertas desde el encargo 2 (punto 2).
+- **Lo que esto NO comprueba:** la página en un navegador real (pintado, sondeo de 20 s y CORS desde el sitio publicado). Es una lectura de los datos, no de la pantalla. Tampoco vi todavía una anotación ni el paso a "final" en vivo.
+- Sin cambios en el código del sitio: `npm test` → 189 de 189.
+- **Me corregí:** había anotado el cierre con la hora adelantada (09:35; fue a las 09:31), y un `git mv` sobre un archivo sin seguir no hizo nada y cortó el comando; lo repetí con `mv`.
