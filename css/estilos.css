@@ -471,3 +471,48 @@ a { color: var(--enlace); }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 .clasica-cancha[hidden], .cancha-leyenda[hidden], .clasica-3d[hidden] { display: none; }
+
+/* "Jugadas clave": reproducción continua a pantalla completa (siempre sobre fondo oscuro, como una transmisión) */
+.zona-clave { margin: 0.9rem 0; }
+.zona-clave .nota { margin-top: 0.35rem; }
+body.con-jugadas-clave { overflow: hidden; }
+.clave-capa {
+  position: fixed; inset: 0; z-index: 60; overflow-y: auto; background: #05080f; color: #fff;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.clave-capa:focus { outline: none; }
+.clave-interior { width: 100%; max-width: 860px; padding: 0.6rem 0.6rem 1rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.clave-progreso { margin: 0; color: #ffd43b; font-weight: 800; font-size: 0.9rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.clave-escena { position: relative; overflow: hidden; border-radius: 10px; background: #0b1326; min-height: min(75vw, 430px); }
+.clave-jugada .vista3d-aviso { color: #b9c4dc; padding: 0 0.5rem 0.4rem; }
+.clave-jugada-2d { padding: 0.6rem; }
+.clave-jugada-2d .pizarra button, .clave-jugada-2d .cancha-leyenda { display: none; }
+.clave-jugada-2d .pizarra-texto { color: #e6ecf8; }
+.clave-sello {
+  position: absolute; top: 0.5rem; right: 0.5rem; margin: 0; padding: 0.15rem 0.55rem; border-radius: 999px;
+  background: #ffd43b; color: #0b1326; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.clave-sello[hidden], .clave-tarjeta[hidden], .clave-jugada .vista3d-botones[hidden], .clave-jugada .pizarra-texto[hidden] { display: none; }
+.clave-tarjeta {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 1rem; text-align: center; background: linear-gradient(160deg, #0b1326 0%, #142248 100%);
+}
+.clave-tarjeta p { margin: 0; }
+.clave-tarjeta-titulo { color: #ffd43b; font-weight: 900; font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.clave-tarjeta-cuando { color: #c9d4ea; font-size: 1rem; }
+.clave-tarjeta-marcador { font-size: clamp(1.2rem, 5.6vw, 2rem); font-weight: 900; line-height: 1.15; text-wrap: balance; }
+.clave-tarjeta-final { font-size: clamp(1.25rem, 5.8vw, 2.6rem); }
+.clave-tarjeta-motivo { max-width: 34rem; color: #eef2fa; font-size: clamp(0.98rem, 3.6vw, 1.15rem); line-height: 1.35; }
+.clave-tarjeta-firma { color: #a9b6cf; font-size: 0.85rem; }
+.clave-tarjeta .boton { margin-top: 0.4rem; }
+.clave-cortina { z-index: 3; }
+.clave-pie { margin: 0; min-height: 2.6em; color: #dfe6f5; font-size: 0.95rem; line-height: 1.3; }
+.clave-controles { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.clave-controles .boton { background: #16213d; color: #fff; border-color: #3a4a72; }
+.clave-controles .boton[disabled] { opacity: 0.45; cursor: default; }
+.clave-controles .boton-narrador[aria-pressed="true"] { background: #3ddc84; color: #06210f; border-color: #3ddc84; }
+.clave-controles .boton[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .clave-tarjeta { animation: clave-entra 0.35s ease-out; }
+  @keyframes clave-entra { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
+}

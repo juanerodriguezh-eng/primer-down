@@ -1,5 +1,5 @@
 // Saca una captura de una página del sitio en Chrome o Edge sin ventana, con WebGL por software (para la vista 3D).
-// Uso: node herramientas/capturar.mjs "/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=3d&t3d=2.5" nombre [ancho] [alto]
+// Uso: node herramientas/capturar.mjs "/partido.html?id=401873052&modo=repeticion&jugada=60&pizarra=3d&t3d=2.5" nombre [ancho] [alto] [milisegundos de espera]
 //   Sin ancho, la página se muestra en un marco de 360 px (como un celular). La imagen queda en herramientas/capturas/nombre.png.
 //   Imprime también el estado de la vista 3D y los errores de consola.
 import { spawn, spawnSync } from 'node:child_process';
@@ -11,7 +11,7 @@ import path from 'node:path';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUERTO = 8139;
 const BASE = `http://localhost:${PUERTO}`;
-const [ruta = '/index.html', nombre = 'captura', ancho = '', alto = ''] = process.argv.slice(2);
+const [ruta = '/index.html', nombre = 'captura', ancho = '', alto = '', tiempo = ''] = process.argv.slice(2);
 const NAVEGADORES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
@@ -32,7 +32,7 @@ try {
   const destino = path.join(RAIZ, 'herramientas', 'capturas', `${nombre}.png`);
   const url = ancho ? BASE + ruta : `${BASE}/herramientas/marco.html?ruta=${encodeURIComponent(ruta)}`;
   const comunes = ['--headless=new', '--no-first-run', '--hide-scrollbars', `--user-data-dir=${perfil}`, '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
-    '--ignore-gpu-blocklist', '--virtual-time-budget=15000', '--enable-logging=stderr', '--v=0'];
+    '--ignore-gpu-blocklist', `--virtual-time-budget=${Number(tiempo) || 15000}`, '--enable-logging=stderr', '--v=0'];
   const tamano = `--window-size=${ancho || 520},${alto || 1640}`;
   const dom = spawnSync(navegador, [...comunes, tamano, '--dump-dom', BASE + ruta], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 120000 });
   const vista = /<div class="vista3d"[^>]*>/.exec(dom.stdout || '');

@@ -1316,13 +1316,14 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   cortina.addEventListener('animationend', () => { cortina.hidden = true; });
 
   let enPausa = false;
-  const reproducir = (nuevoModo = 'transmision', conCortina = nuevoModo !== 'transmision') => {
+  // extra.desde: segundo en que arranca (repetición corta) · extra.mudo: sin relato (para no decir dos veces lo mismo).
+  const reproducir = (nuevoModo = 'transmision', conCortina = nuevoModo !== 'transmision', extra = {}) => {
     cancelAnimationFrame(cuadro);
     clearTimeout(respaldo);
     clearTimeout(esperaCortina);
     if (conCortina && !sinMovimiento()) {
       contenedor.dataset.estado = 'animando';
-      pasarCortina(() => reproducir(nuevoModo, false));
+      pasarCortina(() => reproducir(nuevoModo, false, extra));
       return;
     }
     modo = nuevoModo;
@@ -1333,14 +1334,15 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     contenedor.dataset.estado = 'animando';
     activo = true;
     tamano = medir();
-    saltarA(0);
+    const desde = limitar(Number(extra?.desde) || 0, 0, linea.duracion);
+    saltarA(desde);
     enPausa = false;
     subtitulo.hidden = true;
-    narrador?.cargar(relato, 0); // calla lo anterior y empieza el relato con la jugada (también en la repetición)
+    narrador?.cargar(extra?.mudo ? [] : relato, desde); // calla lo anterior y empieza el relato con la jugada (también en la repetición)
     ultimo = performance.now();
     cuadro = requestAnimationFrame(paso);
     // Si el navegador casi no entrega cuadros (pestaña en segundo plano, ahorro de batería), la jugada igual llega al final.
-    respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin') { saltarA(linea.duracion); narrador?.avanzar(t); terminar(); } }, (linea.duracion / velocidad) * 1000 + 1500);
+    respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin') { saltarA(linea.duracion); narrador?.avanzar(t); terminar(); } }, ((linea.duracion - desde) / velocidad) * 1000 + 1500);
   };
 
   // Reproduce solo un tramo de la jugada (un paso de una jugada clásica), a velocidad normal y con la cámara elegida.

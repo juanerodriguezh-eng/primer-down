@@ -14,6 +14,7 @@ import { graficaDeTV } from './graficatv.js';
 import { simularEnCurso, FORMAS_EN_VIVO } from './simulador.js';
 import { relatoDeJugada } from './narrador.js';
 import { narradorDelNavegador } from './voz.js';
+import { elegirJugadasClave } from './clave.js';
 
 const parametros = new URLSearchParams(location.search);
 const idPartido = (parametros.get('id') || '').trim();
@@ -23,6 +24,10 @@ const enRepeticion = parametros.get('modo') === 'repeticion';
 const desdeGuardado = parametros.get('fuente') === 'guardado';
 // ?fuente=simulado convierte el partido guardado en uno "en curso" que avanza solo (demostración y pruebas del modo en vivo).
 const simulado = parametros.get('fuente') === 'simulado';
+
+// ?modo=clave abre directo las jugadas clave en reproducción continua (para grabar el video); &clave=3 arranca en la tercera.
+const modoClave = parametros.get('modo') === 'clave';
+let abrirClaveAlCargar = modoClave;
 
 let abrirAlCargar = { abierta: '2d', '3d': '3d' }[parametros.get('pizarra')] || '';
 
@@ -131,6 +136,41 @@ function pintarResumen(p) {
     setTimeout(() => { copiar.textContent = 'Copiar resumen'; }, 2500);
   });
   zona.append(crear('h2', {}, resumen.titulo), crear('p', { class: 'resumen-relato' }, resumen.cabecera), crear('p', {}, resumen.encabezadoLista), crear('ol', { class: 'resumen-lista' }, resumen.lineas.map((l) => crear('li', {}, l))), copiar);
+}
+
+// ---------------------------------------------------------------------------
+// "Jugadas clave": botón que abre la reproducción continua de las jugadas que decidieron el partido
+// ---------------------------------------------------------------------------
+
+let partidoParaClave = null;
+const zonaClave = crear('div', { class: 'zona-clave', hidden: true });
+const botonClave = crear('button', { type: 'button', class: 'boton boton-principal boton-clave' }, '▶ Jugadas clave');
+zonaClave.append(botonClave, crear('p', { class: 'nota' }, 'Las jugadas que decidieron el partido, una tras otra, con repetición.'));
+zonas.resumen.before(zonaClave);
+
+async function abrirClave(desde = 0) {
+  if (!partidoParaClave) return;
+  try {
+    const { abrirJugadasClave } = await import('./modoclave.js');
+    if (abierta3D) cerrarZona(abierta3D.zona, abierta3D.boton); // solo hay una vista 3D a la vez
+    abrirJugadasClave(partidoParaClave, { desde });
+    ponerAviso('clave', null);
+  } catch {
+    ponerAviso('clave', aviso('No se pudieron abrir las jugadas clave. El resto de la página sigue funcionando.', 'error'));
+  }
+}
+botonClave.addEventListener('click', () => abrirClave(0));
+
+function pintarBotonClave(p) {
+  let cuantas = 0;
+  try { cuantas = (p.estado === 'final' || (!p.enRepeticion && p.estado === 'en-vivo')) ? elegirJugadasClave(p, 5).length : 0; } catch { cuantas = 0; }
+  const hay = cuantas >= 3;
+  zonaClave.hidden = !hay;
+  partidoParaClave = hay ? p : null;
+  if (hay && abrirClaveAlCargar) {
+    abrirClaveAlCargar = false;
+    abrirClave(Math.max(0, (Number(parametros.get('clave')) || 1) - 1));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -279,6 +319,7 @@ function pintar(p, { animar = true } = {}) {
   pintarMarcador(p);
   pintarSituacion(p);
   pintarResumen(p);
+  pintarBotonClave(p);
   pintarFeed(p, animar);
   document.body.dataset.estado = p.estado;
   document.body.dataset.listo = '1';
@@ -350,7 +391,16 @@ async function traerSimulado() {
   return summary;
 }
 
-const traerDatos = () => (simulado ? traerSimulado() : desdeGuardado ? traerPartidoGuardado(idPartido) : traerPartido(idPartido));
+// Con ?modo=clave se usa el partido guardado si lo hay (carga al instante y no depende de la red); si no, ESPN.
+let fuenteClave = null;
+async function traerParaClave() {
+  if (fuenteClave === null) {
+    try { fuenteClave = (await traerIndiceGuardados()).partidos?.some((x) => x.id === idPartido) ? 'guardado' : 'espn'; } catch { fuenteClave = 'espn'; }
+  }
+  return fuenteClave === 'guardado' ? traerPartidoGuardado(idPartido) : traerPartido(idPartido);
+}
+
+const traerDatos = () => (modoClave && !simulado && !desdeGuardado ? traerParaClave() : simulado ? traerSimulado() : desdeGuardado ? traerPartidoGuardado(idPartido) : traerPartido(idPartido));
 
 function recibir(summary, { primeraVez }) {
   const p = construirPartido(summary);

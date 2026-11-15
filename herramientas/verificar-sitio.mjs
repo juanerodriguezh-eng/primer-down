@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/narrador.js', '/js/voz.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/narrador.js', '/js/voz.js', '/js/clave.js', '/js/modoclave.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -99,9 +99,36 @@ const PAGINAS = [
     ['la pizarra 2D terminó su animación', /class="cancha pizarra-cancha"[^>]*data-estado="fin"/.test(dom)],
     ['no queda ninguna vista 3D a medias', !/class="vista3d"/.test(dom)],
   ] },
+  // "Jugadas clave" en reproducción continua (?modo=clave): tarjeta de título, jugada en 3D, repetición y marcador final.
+  { nombre: 'jugadas-clave-titulo', ruta: '/partido.html?id=401873052&modo=clave', gl: true, tiempo: 2500, revisar: (dom) => [
+    ['botón "▶ Jugadas clave" en la página del partido', /<div class="zona-clave"><button type="button" class="boton boton-principal boton-clave">▶ Jugadas clave</.test(dom)],
+    ['se abre sola en la tarjeta de la primera jugada', /<div class="clave-capa"[^>]*data-paso="titulo" data-indice="0"/.test(dom) && dom.includes('Jugadas clave · 1 de 5')],
+    ['la tarjeta dice cuarto, reloj, marcador de antes y por qué fue clave', dom.includes('<p class="clave-tarjeta-cuando">4.º cuarto · 8:13</p>') && dom.includes('<p class="clave-tarjeta-marcador">Commanders 17 · Giants 14</p>') && dom.includes('<p class="clave-tarjeta-motivo">Touchdown de los Giants: le dio la vuelta al marcador. Subió 37 puntos la probabilidad de ganar de los Giants.</p>')],
+    ['controles de pausa, siguiente y salir', dom.includes('>⏸ Pausa</button>') && dom.includes('>⏭ Siguiente</button>') && dom.includes('>✕ Salir</button>')],
+  ] },
+  { nombre: 'jugadas-clave-jugada', ruta: '/partido.html?id=401873052&modo=clave', gl: true, tiempo: 9000, revisar: (dom) => [
+    ['después de la tarjeta se ve la jugada en 3D con cámara de transmisión', /<div class="clave-capa"[^>]*data-paso="jugada" data-indice="0"/.test(dom) && /<div class="clave-jugada vista3d"[^>]*data-jugadores="22"[^>]*data-camara="transmision"/.test(dom)],
+    ['la tarjeta se retira y queda el texto de la jugada', /<div class="clave-tarjeta" hidden="">/.test(dom) && dom.includes('<p class="clave-pie">I. Likely atrapa el pase profundo por el centro de J. McCarthy')],
+  ] },
+  { nombre: 'jugadas-clave-final', ruta: '/partido.html?id=401873052&modo=clave&clave=5&narrador=simulado', gl: true, tiempo: 40000, revisar: (dom) => [
+    ['la última jugada pasa por jugada y repetición y llega al marcador final', /<div class="clave-capa"[^>]*data-paso="final"/.test(dom) && dom.includes('<p class="clave-tarjeta-titulo">Marcador final</p>') && dom.includes('<p class="clave-tarjeta-marcador clave-tarjeta-final">Commanders 24 · Giants 21</p>') && dom.includes('Ganaron los Commanders.')],
+    ['con el narrador encendido también se narra', /<div class="clave-capa"[^>]*data-narrador="encendido"/.test(dom) && /<button type="button" class="boton boton-chico boton-narrador" aria-pressed="true"/.test(dom)],
+    ['al final se ofrece verlas de nuevo y no queda ninguna vista 3D a medias', dom.includes('↺ Ver de nuevo') && /<div class="clave-jugada"><\/div>/.test(dom)],
+  ] },
+  { nombre: 'jugadas-clave-sin-webgl', ruta: '/partido.html?id=401873052&modo=clave', sinGl: true, tiempo: 6500, revisar: (dom) => [
+    ['sin WebGL la misma secuencia usa la pizarra 2D', /<div class="clave-capa"[^>]*data-paso="(jugada|repeticion)" data-indice="0"/.test(dom) && /<div class="clave-jugada clave-jugada-2d"><div class="pizarra" data-forma="pase">/.test(dom)],
+    ['no se intenta la vista 3D', !/class="clave-jugada vista3d"/.test(dom)],
+  ] },
+  { nombre: 'jugadas-clave-sin-webgl-final', ruta: '/partido.html?id=401873052&modo=clave&clave=4', sinGl: true, tiempo: 60000, revisar: (dom) => [
+    ['sin WebGL dos jugadas seguidas (título, pizarra, repetición y cortina) llegan al marcador final', /<div class="clave-capa"[^>]*data-paso="final"/.test(dom) && dom.includes('Commanders 24 · Giants 21')],
+  ] },
+  { nombre: 'repeticion-a-medias-sin-clave', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=60', revisar: (dom) => [
+    ['a media repetición no se ofrecen las jugadas clave (el partido "no ha terminado")', /<div class="zona-clave" hidden="">/.test(dom) && !/class="clave-capa"/.test(dom)],
+  ] },
   { nombre: 'repeticion-final', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=188', revisar: (dom) => [
     ['188 jugadas pintadas', contar(dom, /<article class="jugada /g) === 188],
     ['partido terminado', dom.includes('Partido terminado') && dom.includes('Ganaron los Commanders, 24 a 21')],
+    ['botón de jugadas clave visible al terminar el partido', /<div class="zona-clave"><button type="button" class="boton boton-principal boton-clave">▶ Jugadas clave</.test(dom) && !dom.includes('class="clave-capa"')],
     ['resumen final con frases completas', dom.includes('Así se ganó el partido') && dom.includes('Copiar resumen') && dom.includes('<li>4.º cuarto, 8:13: I. Likely atrapa el pase profundo')],
     ['jugadas clave marcadas', contar(dom, /class="sello-clave"/g) >= 3],
   ] },
