@@ -597,3 +597,9 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 4. **`git push`** para publicar (lo publicado sigue siendo el encargo 3).
 5. **Domingo 15, partido en vivo:** sigue pendiente lo de siempre (sondeo real, `drives.current`, `winprobability` y `boxscore.players` en vivo). Nuevo: comprobar que el botón "▶ Jugadas clave" aparece durante un partido en curso y que no molesta.
 6. Sin cambios: fps en un celular real, lector de pantalla y orden de tabulación.
+
+### Turno 12 (dom 15, 03:50) — comprobación del cierre, sin cambios de código
+- Encontré el encargo 4 cerrado y el árbol de git limpio (`ahead 7`: las confirmaciones del encargo 4 siguen sin publicar). No había trabajo sin anotar.
+- **Volví a verificar todo antes de darlo por bueno:** `npm test` → `tests 173 · pass 173 · fail 0`; `node --check` de todos los archivos de `js/` y `herramientas/` sin errores; `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` (los 5 de siempre, por ESPN).
+- **No toqué código:** lo pendiente (oír al narrador, ver "Jugadas clave" en movimiento, el partido en vivo de esta tarde y `git push`) lo tiene que hacer una persona; la lista está en el cierre de arriba.
+- **Aviso para el dueño:** los turnos programados siguen gastando cupo de Fable sin nada que hacer. Conviene desactivarlos hasta que haya un encargo nuevo.
