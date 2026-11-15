@@ -10,7 +10,7 @@ import { simularEnCurso, FORMAS_EN_VIVO } from '../js/simulador.js';
 import { elegirJugadasClave } from '../js/clave.js';
 import {
   serieDeProbabilidad, fraseDeTV, lecturaDePunto, textoDePunto, descripcionDeSerie, segundosDeJuego, porcentajes,
-  escalas, rutaDeLinea, rutaDeArea, masCercano, saltarAMomento, coloresDeGrafica, contraste,
+  escalas, rutaDeLinea, rutaDeArea, masCercano, saltarAMomento, coloresDeGrafica, contraste, miniDeClave,
 } from '../js/probabilidad.js';
 
 const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'datos', 'partidos');
@@ -317,4 +317,29 @@ test('colores: los de cada equipo se distinguen del fondo (3:1) y entre sí, en 
   // Dos equipos con el mismo azul oscuro: no pueden quedar iguales.
   const iguales = coloresDeGrafica({ color: '#002a5c', colorAlterno: '#69be28' }, { color: '#002a5c', colorAlterno: '#c60c30' }, '#141d30', '#eef2fa');
   assert.notEqual(iguales.local, iguales.visitante);
+});
+
+test('mini gráfica de una jugada clave: el punto es el dato de ESPN de esa jugada y cabe en su caja', () => {
+  let revisadas = 0;
+  for (const id of IDS) {
+    const p = construirPartido(leer(id));
+    const s = serieDeProbabilidad(p);
+    for (const c of elegirJugadasClave(p, 5)) {
+      const m = miniDeClave(s, c.id);
+      const punto = s.puntos.find((x) => x.id === c.id);
+      if (!punto) { assert.equal(m, null); continue; }
+      revisadas++;
+      assert.ok(m.punto.x >= m.izq && m.punto.x <= m.der, `${id}: el punto se sale a lo ancho`);
+      assert.ok(m.punto.y >= 0 && m.punto.y <= m.alto, `${id}: el punto se sale a lo alto`);
+      assert.ok(m.linea.includes(`${m.punto.x} ${m.punto.y}`), `${id}: el punto no está sobre la línea`);
+      assert.ok(m.descripcion.includes(`${p.visitante.nombre} ${punto.pct.visitante} %`) && m.descripcion.includes(`${p.local.nombre} ${punto.pct.local} %`));
+      assert.ok(!/undefined|NaN/.test(m.linea + m.area + m.descripcion));
+    }
+  }
+  assert.ok(revisadas >= 60, `solo ${revisadas} mini gráficas revisadas`);
+  // Sin serie (ESPN no trae la probabilidad) o con una jugada que no está en la serie: no hay mini gráfica.
+  assert.equal(miniDeClave(null, '1'), null);
+  const s = serieDeProbabilidad(construirPartido(jueves));
+  assert.equal(miniDeClave(s, 'no-existe'), null);
+  assert.equal(miniDeClave(s, null), null);
 });

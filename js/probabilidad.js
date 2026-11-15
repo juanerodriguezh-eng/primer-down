@@ -229,6 +229,22 @@ export function saltarAMomento(puntos, i, dir) {
   return i;
 }
 
+// Mini gráfica para la tarjeta de una jugada clave: la línea de todo el partido y el punto de esa jugada.
+// Devuelve null si no hay serie o si esa jugada no tiene dato de ESPN (entonces la tarjeta va sin mini gráfica).
+export function miniDeClave(serie, idJugada, ancho = 240, alto = 64) {
+  if (!serie?.puntos?.length || idJugada == null) return null;
+  const p = serie.puntos.find((x) => x.id === String(idJugada));
+  if (!p) return null;
+  const e = escalas(serie, ancho, alto, { izq: 3, der: 3, arriba: 6, abajo: 6 });
+  return {
+    ancho, alto, izq: e.izq, der: e.der, medio: r1(e.medio),
+    linea: rutaDeLinea(serie.puntos, e),
+    area: rutaDeArea(serie.puntos, e),
+    punto: { x: e.x(p.t), y: e.y(p.local) },
+    descripcion: `Probabilidad de ganar a lo largo del partido. Después de esta jugada: ${serie.visitante.nombre} ${p.pct.visitante} %, ${serie.local.nombre} ${p.pct.local} %.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Colores: los de cada equipo, pero que se vean sobre el fondo y no se confundan entre sí
 // ---------------------------------------------------------------------------

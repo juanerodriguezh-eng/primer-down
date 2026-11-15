@@ -106,6 +106,7 @@ const PAGINAS = [
     ['se abre sola en la tarjeta de la primera jugada', /<div class="clave-capa"[^>]*data-paso="titulo" data-indice="0"/.test(dom) && dom.includes('Jugadas clave · 1 de 5')],
     ['la tarjeta dice cuarto, reloj, marcador de antes y por qué fue clave', dom.includes('<p class="clave-tarjeta-cuando">4.º cuarto · 8:13</p>') && dom.includes('<p class="clave-tarjeta-marcador">Commanders 17 · Giants 14</p>') && dom.includes('<p class="clave-tarjeta-motivo">Touchdown de los Giants: le dio la vuelta al marcador. Subió 37 puntos la probabilidad de ganar de los Giants.</p>')],
     ['controles de pausa, siguiente y salir', dom.includes('>⏸ Pausa</button>') && dom.includes('>⏭ Siguiente</button>') && dom.includes('>✕ Salir</button>')],
+    ['mini gráfica de probabilidad con el punto de esa jugada', contar(dom, /<svg class="clave-mini"/g) === 1 && contar(dom, /<circle class="clave-mini-punto"/g) === 1 && dom.includes('aria-label="Probabilidad de ganar a lo largo del partido. Después de esta jugada: Commanders 29 %, Giants 71 %."')],
   ] },
   { nombre: 'jugadas-clave-jugada', ruta: '/partido.html?id=401873052&modo=clave', gl: true, tiempo: 9000, revisar: (dom) => [
     ['después de la tarjeta se ve la jugada en 3D con cámara de transmisión', /<div class="clave-capa"[^>]*data-paso="jugada" data-indice="0"/.test(dom) && /<div class="clave-jugada vista3d"[^>]*data-jugadores="22"[^>]*data-camara="transmision"/.test(dom)],

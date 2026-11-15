@@ -10,6 +10,8 @@ import { graficaDeTV } from './graficatv.js';
 import { relatoDeJugada } from './narrador.js';
 import { narradorDelNavegador } from './voz.js';
 import { trazoDeJugada, dibujarPizarra } from './pizarra.js';
+import { nodo } from './cancha.js';
+import { serieDeProbabilidad, miniDeClave, coloresDeGrafica } from './probabilidad.js';
 import { puedeUsar3D, mostrarJugada3D, cerrarVista3D } from './vista3d.js';
 
 const sinMovimiento = () => { try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
@@ -102,6 +104,33 @@ export function abrirJugadasClave(partido, opciones = {}) {
     tarjeta.hidden = false;
   };
 
+  // Mini gráfica de la tarjeta: la probabilidad de ganar de todo el partido con el punto de esta jugada.
+  // Es un adorno: si ESPN no trae el dato o algo falla, la tarjeta va sin ella.
+  let serieProb; // undefined = todavía sin calcular
+  const miniGrafica = (i) => {
+    try {
+      if (serieProb === undefined) serieProb = serieDeProbabilidad(partido);
+      const m = miniDeClave(serieProb, claves[i].id);
+      if (!m) return null;
+      const c = coloresDeGrafica(serieProb.local, serieProb.visitante, '#0b1326', '#ffffff');
+      const svg = nodo('svg', { class: 'clave-mini', viewBox: `0 0 ${m.ancho} ${m.alto}`, width: m.ancho, height: m.alto, role: 'img', 'aria-label': m.descripcion });
+      const defs = nodo('defs', {});
+      const recorte = (id, y, h) => { const cp = nodo('clipPath', { id, clipPathUnits: 'userSpaceOnUse' }); cp.append(nodo('rect', { x: 0, y, width: m.ancho, height: h })); defs.append(cp); };
+      recorte('clave-mini-arriba', 0, m.medio);
+      recorte('clave-mini-abajo', m.medio, m.alto - m.medio);
+      svg.append(defs,
+        nodo('path', { class: 'clave-mini-area', d: m.area, fill: c.visitante, 'clip-path': 'url(#clave-mini-arriba)' }),
+        nodo('path', { class: 'clave-mini-area', d: m.area, fill: c.local, 'clip-path': 'url(#clave-mini-abajo)' }),
+        nodo('line', { class: 'clave-mini-mitad', x1: m.izq, y1: m.medio, x2: m.der, y2: m.medio }),
+        nodo('path', { class: 'clave-mini-linea', d: m.linea }),
+        nodo('circle', { class: 'clave-mini-punto', cx: m.punto.x, cy: m.punto.y, r: 5 }));
+      return crear('div', { class: 'clave-mini-caja' },
+        crear('span', { class: 'clave-mini-equipo', 'aria-hidden': 'true' }, serieProb.visitante.abrev),
+        svg,
+        crear('span', { class: 'clave-mini-equipo', 'aria-hidden': 'true' }, serieProb.local.abrev));
+    } catch { return null; }
+  };
+
   // --- Pasos ---
   const pasoTitulo = (i) => {
     soltarJugada();
@@ -113,7 +142,8 @@ export function abrirJugadasClave(partido, opciones = {}) {
       crear('p', { class: 'clave-tarjeta-cuando' }, t.cuando),
       crear('p', { class: 'clave-tarjeta-marcador' }, t.marcador),
       crear('p', { class: 'clave-tarjeta-motivo' }, t.motivo),
-    ]);
+      miniGrafica(i),
+    ].filter(Boolean));
     marcar('titulo');
     decir(`${t.cuando.replace(' · ', ', ')}. ${t.motivo}`);
     // Se queda lo que tarde en leerse (o en decirse, con el narrador encendido).
