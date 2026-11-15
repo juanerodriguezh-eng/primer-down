@@ -588,7 +588,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` en 36 páginas (los 5 avisos de siempre: ESPN responde 403 al navegador sin ventana). Las páginas del modo en vivo simulado, del respaldo 2D y de la calidad automática siguen pasando.
 - `node --check` de todos los archivos de `js/` y `herramientas/`.
 - Capturas miradas a ojo a 360 px y a 1280 px (tarjeta, jugada, repetición y marcador final).
-- 5 confirmaciones en git en este turno. **Sin push**, como pide el encargo.
+- 4 confirmaciones de código en git en este turno (más esta corrección de la bitácora). **Sin push**, como pide el encargo.
 
 ### Qué falta (lo tiene que mirar y oír una persona)
 1. **Oír al narrador** en Chrome de escritorio y en un celular: cómo suena la voz y si el ritmo calza con la jugada. Velocidad y tono: `u.rate` y `u.pitch` en `js/narrador.js`.
