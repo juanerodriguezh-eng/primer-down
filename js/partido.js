@@ -12,6 +12,8 @@ import { lineaDeTiempo } from './jugada3d.js';
 import { puedeUsar3D, mostrarJugada3D, cerrarVista3D } from './vista3d.js';
 import { graficaDeTV } from './graficatv.js';
 import { simularEnCurso, FORMAS_EN_VIVO } from './simulador.js';
+import { relatoDeJugada } from './narrador.js';
+import { narradorDelNavegador } from './voz.js';
 
 const parametros = new URLSearchParams(location.search);
 const idPartido = (parametros.get('id') || '').trim();
@@ -175,7 +177,7 @@ async function abrirVista(zona, boton, j, p, trazo, en3D, opciones = {}) {
       if (!linea) throw new Error('Jugada sin recreación');
       if (abierta3D && abierta3D.zona !== zona) cerrarZona(abierta3D.zona, abierta3D.boton);
       abierta3D = { zona, boton };
-      await mostrarJugada3D(caja, linea, { ...opciones, tv: graficaDeTV(j, p), alFallar: () => abrirVista(zona, boton, j, p, trazo, false, { nota: true }) });
+      await mostrarJugada3D(caja, linea, { ...opciones, tv: graficaDeTV(j, p), narrador: narradorDelNavegador(), relato: relatoDeJugada(j, linea, p), alFallar: () => abrirVista(zona, boton, j, p, trazo, false, { nota: true }) });
       return;
     } catch {
       if (abierta3D?.zona === zona) abierta3D = null;
@@ -288,6 +290,7 @@ function pintar(p, { animar = true } = {}) {
       const en3D = abrirAlCargar === '3d';
       const opciones = !en3D ? {} : { camara: parametros.get('camara') || '', calidad: parametros.get('calidad') || '', ...(parametros.has('t3d') ? { congelarEn: Number(parametros.get('t3d')) || 0 } : {}) };
       abrirAlCargar = '';
+      try { boton.scrollIntoView({ block: 'start' }); } catch { /* sin desplazamiento, se abre igual */ } // fuera de pantalla la vista 3D se pausa
       boton.dispatchEvent(new CustomEvent('click', { detail: { en3D, opciones } }));
     }
   }

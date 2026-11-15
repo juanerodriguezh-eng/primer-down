@@ -26,7 +26,7 @@ const NAVEGADORES = [
 const ARCHIVOS = [
   '/', '/index.html', '/partido.html', '/glosario.html', '/pizarra.html', '/js/pizarra-pagina.js', '/js/clasicas.js', '/css/estilos.css',
   '/js/portada.js', '/js/partido.js', '/js/glosario-pagina.js', '/js/modelo.js', '/js/motor.js', '/js/api.js', '/js/ui.js',
-  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
+  '/js/cancha.js', '/js/vivo.js', '/js/simulador.js', '/js/pizarra.js', '/js/jugada3d.js', '/js/clasica3d.js', '/js/vista3d.js', '/js/graficatv.js', '/js/calidad.js', '/js/narrador.js', '/js/voz.js', '/js/vendor/three.module.min.js', '/js/vendor/RoomEnvironment.js', '/js/vendor/EffectComposer.js', '/js/vendor/RenderPass.js', '/js/vendor/ShaderPass.js', '/js/vendor/MaskPass.js', '/js/vendor/Pass.js', '/js/vendor/UnrealBloomPass.js', '/js/vendor/OutputPass.js', '/js/vendor/CopyShader.js', '/js/vendor/LuminosityHighPassShader.js', '/js/vendor/OutputShader.js', '/js/repeticion.js', '/js/glosario.js', '/js/penales.js', '/js/equipos.js',
   '/datos/partidos/indice.json', '/datos/partidos/401873052.json',
 ];
 
@@ -73,6 +73,17 @@ const PAGINAS = [
     ['la cortina dice "Repetición" y no queda tapando la imagen', /<div class="tv-cortina[^"]*"[^>]*hidden=""[^>]*><span>Repetición</.test(dom)],
     ['al terminar el touchdown el marcador de TV sube de 3 a 10', /<div class="vista3d"[^>]*data-marcador="10-7"/.test(dom) && /class="tv-equipo tv-ataca tv-anota"[^>]*><span class="tv-abrev">WSH<\/span><span class="tv-puntos">10</.test(dom)],
     ['sello de cámara lenta', /class="vista3d-sello">Repetición · cámara lenta</.test(dom)],
+  ] },
+  // Narrador: el navegador sin ventana no trae voces, así que sin voz el botón no debe verse; con la voz simulada
+  // (sin sonido) se comprueba que las frases salen sincronizadas con la jugada y quedan escritas sobre la imagen.
+  { nombre: 'vista-3d-narrador', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&narrador=simulado', gl: true, tiempo: 20000, revisar: (dom) => [
+    ['la jugada llegó al final con el narrador encendido', /<div class="vista3d"[^>]*data-estado="fin"/.test(dom) && /<div class="vista3d"[^>]*data-narrador="encendido"/.test(dom)],
+    ['botón "🔊 Narrador" visible y marcado como encendido', /<button type="button" class="boton boton-chico boton-narrador" title="[^"]*" aria-pressed="true">🔊 Narrador</.test(dom)],
+    ['se dijeron al menos 2 frases del relato (con los pocos cuadros del navegador sin ventana solo salen la primera y la última)', Number(/<div class="vista3d"[^>]*data-narrado="(\d+)"/.exec(dom)?.[1] || 0) >= 2],
+    ['la última frase dicha queda escrita sobre la imagen (touchdown o marcador)', /<p class="vista3d-subtitulo" aria-hidden="true">(¡[^<]*[Tt]ouchdown[^<]*|Commanders 10, Giants 7\.)</.test(dom)],
+  ] },
+  { nombre: 'vista-3d-sin-voz', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8', gl: true, revisar: (dom) => [
+    ['sin voz en español el botón del narrador no aparece y la vista 3D sigue igual', /<div class="vista3d"[^>]*data-narrador="(sin-voz|apagado)"/.test(dom) && /<div class="vista3d"[^>]*data-estado="congelada"/.test(dom) && (!/data-narrador="sin-voz"/.test(dom) || /class="boton boton-chico boton-narrador"[^>]*hidden=""/.test(dom))],
   ] },
   { nombre: 'vista-3d-calidad-alta', ruta: '/partido.html?id=401873052&modo=repeticion&jugada=87&pizarra=3d&t3d=2.8&camara=cancha&calidad=alta', gl: true, revisar: (dom) => [
     ['con calidad alta pedida se dibuja con todos los efectos (entorno, bloom y grano cargan)', /<div class="vista3d"[^>]*data-calidad="alta"/.test(dom) && /<div class="vista3d"[^>]*data-estado="congelada"/.test(dom)],

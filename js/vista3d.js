@@ -880,6 +880,35 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   const bCancha = boton('A ras de cancha');
   bCancha.title = 'Desde la banda, a la altura de los jugadores, en cámara lenta';
   botones.append(bRepetir, bRepeticion, bCancha);
+  // Narrador: la voz en español del propio navegador. El botón solo existe si hay una voz; lo que se dice va
+  // también escrito sobre la imagen. Si la voz falla, la vista sigue igual.
+  const narrador = opciones.narrador && Array.isArray(opciones.relato) && opciones.relato.length ? opciones.narrador : null;
+  const relato = narrador ? opciones.relato : [];
+  const subtitulo = document.createElement('p');
+  subtitulo.className = 'vista3d-subtitulo';
+  subtitulo.setAttribute('aria-hidden', 'true');
+  subtitulo.hidden = true;
+  const bNarrador = boton('🔊 Narrador');
+  bNarrador.classList.add('boton-narrador');
+  bNarrador.title = 'Relato de la jugada con la voz en español de tu navegador';
+  bNarrador.hidden = true;
+  let frasesDichas = 0;
+  const pintarNarrador = () => {
+    const hay = !!narrador?.disponible();
+    const si = hay && narrador.encendido();
+    bNarrador.hidden = !hay;
+    bNarrador.setAttribute('aria-pressed', si ? 'true' : 'false');
+    contenedor.dataset.narrador = !hay ? 'sin-voz' : si ? 'encendido' : 'apagado';
+    if (!si) subtitulo.hidden = true;
+  };
+  const dejarDeOir = [
+    narrador?.alCambiar(pintarNarrador),
+    narrador?.alDecir((frase) => { subtitulo.textContent = frase.texto; subtitulo.hidden = false; frasesDichas++; contenedor.dataset.narrado = String(frasesDichas); }),
+  ];
+  pintarNarrador();
+  botones.append(bNarrador);
+  marco.append(subtitulo);
+  if (opciones.compacto) { botones.hidden = true; texto.hidden = true; } // "Jugadas clave" trae sus propios controles
   contenedor.append(marco, texto, aviso, botones);
 
   // --- Escena de esta jugada ---
@@ -1224,6 +1253,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     cartel.classList.toggle('vista3d-cartel-anotacion', tTouchdown !== null);
     ponerPuntosTV(t >= linea.duracion - 0.01);
     contenedor.dataset.estado = 'fin';
+    try { opciones.alTerminar?.(modo); } catch { /* quien escucha no puede romper la vista */ }
   };
 
   const paso = (ahora) => {
@@ -1238,8 +1268,9 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     ultimo = ahora;
     t = Math.min(tFin, t + dt * velocidad);
     dibujar(dt * velocidad);
+    narrador?.avanzar(t);
     if (t >= tFin) { terminar(); return; }
-    if (visible) cuadro = requestAnimationFrame(paso);
+    if (visible && !enPausa) cuadro = requestAnimationFrame(paso);
   };
 
   // Lleva la escena al segundo `hasta` sin dibujar cada cuadro (para saltar o congelar) y dibuja uno.
@@ -1284,6 +1315,7 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   let finCortina = 0;
   cortina.addEventListener('animationend', () => { cortina.hidden = true; });
 
+  let enPausa = false;
   const reproducir = (nuevoModo = 'transmision', conCortina = nuevoModo !== 'transmision') => {
     cancelAnimationFrame(cuadro);
     clearTimeout(respaldo);
@@ -1302,10 +1334,13 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     activo = true;
     tamano = medir();
     saltarA(0);
+    enPausa = false;
+    subtitulo.hidden = true;
+    narrador?.cargar(relato, 0); // calla lo anterior y empieza el relato con la jugada (también en la repetición)
     ultimo = performance.now();
     cuadro = requestAnimationFrame(paso);
     // Si el navegador casi no entrega cuadros (pestaña en segundo plano, ahorro de batería), la jugada igual llega al final.
-    respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin') { saltarA(linea.duracion); terminar(); } }, (linea.duracion / velocidad) * 1000 + 1500);
+    respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin') { saltarA(linea.duracion); narrador?.avanzar(t); terminar(); } }, (linea.duracion / velocidad) * 1000 + 1500);
   };
 
   // Reproduce solo un tramo de la jugada (un paso de una jugada clásica), a velocidad normal y con la cámara elegida.
@@ -1348,11 +1383,35 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
     bRepeticion.addEventListener('click', () => reproducir('repeticion'));
     bCancha.addEventListener('click', () => reproducir('cancha'));
   }
+  // Al encender el narrador a media jugada sigue desde ese instante; si la jugada ya terminó, se vuelve a ver narrada.
+  bNarrador.addEventListener('click', () => {
+    if (!narrador) return;
+    narrador.encender(!narrador.encendido());
+    if (!narrador.encendido()) return;
+    if (contenedor.dataset.estado === 'animando' && cuadro) narrador.cargar(relato, t); else reproducir(modo, false);
+  });
+  // Pausa y continúa la reproducción en curso (lo usa "Jugadas clave"). En pausa el narrador se calla.
+  const pausa = (si) => {
+    if (si === enPausa) return;
+    enPausa = si;
+    if (si) {
+      cancelAnimationFrame(cuadro); cuadro = 0;
+      clearTimeout(respaldo);
+      narrador?.pausar();
+    } else {
+      narrador?.continuar();
+      if (contenedor.dataset.estado !== 'animando') return;
+      ultimo = performance.now();
+      cuadro = requestAnimationFrame(paso);
+      respaldo = setTimeout(() => { if (contenedor.dataset.estado !== 'fin' && !enPausa) { saltarA(tFin); narrador?.avanzar(t); terminar(); } }, ((tFin - t) / velocidad) * 1000 + 1500);
+    }
+  };
 
   // Pausa cuando no se ve: pestaña oculta o la vista fuera de la pantalla.
   const alCambiarVisibilidad = () => {
     const ahoraVisible = !document.hidden && enPantalla;
-    if (ahoraVisible && !visible && contenedor.dataset.estado === 'animando' && !cuadro) { ultimo = performance.now(); cuadro = requestAnimationFrame(paso); }
+    if (!ahoraVisible) narrador?.pausar(); else if (!enPausa) narrador?.continuar(); // con la pestaña oculta no se habla
+    if (ahoraVisible && !visible && contenedor.dataset.estado === 'animando' && !cuadro && !enPausa) { ultimo = performance.now(); cuadro = requestAnimationFrame(paso); }
     visible = ahoraVisible;
   };
   let enPantalla = true;
@@ -1372,6 +1431,8 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
       cancelAnimationFrame(cuadro);
       clearTimeout(respaldo);
       clearTimeout(esperaCortina);
+      narrador?.callar();
+      for (const dejar of dejarDeOir) dejar?.();
       observador?.disconnect();
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
       window.removeEventListener('resize', alRedimensionar);
@@ -1395,12 +1456,13 @@ export async function mostrarJugada3D(contenedor, linea, opciones = {}) {
   // irA: deja la jugada congelada en un segundo y con una cámara (revisión y capturas).
   const irA = (segundo, camara = 'transmision') => {
     cancelAnimationFrame(cuadro); clearTimeout(respaldo); cuadro = 0;
+    narrador?.callar();
     modo = ['repeticion', 'cancha'].includes(camara) ? camara : 'transmision';
     ponerSello();
     saltarA(segundo);
     if (segundo >= linea.duracion) terminar(); else { cartel.hidden = true; contenedor.dataset.estado = 'congelada'; }
   };
-  return { reproducir, irA, tramo, camara: () => modo, cerrar: () => { if (v.sesion === sesion) soltar(); }, contenedor };
+  return { reproducir, irA, tramo, pausa, camara: () => modo, cerrar: () => { if (v.sesion === sesion) soltar(); }, contenedor };
 }
 
 // Cierra la vista 3D que esté abierta (si hay alguna).

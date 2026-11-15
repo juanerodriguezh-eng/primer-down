@@ -189,7 +189,7 @@ const CLAVE = 'primerdown-narrador';
 // sintesis: speechSynthesis (o algo con speak, cancel, getVoices). Enunciado: SpeechSynthesisUtterance.
 // memoria: localStorage (o algo con getItem y setItem). Todo es opcional: si falta o falla, el narrador
 // simplemente no está disponible y nada más se rompe.
-export function crearNarrador({ sintesis = null, Enunciado = null, memoria = null, alHablar = null } = {}) {
+export function crearNarrador({ sintesis = null, Enunciado = null, memoria = null } = {}) {
   let voz = null;
   let encendido = false;
   let frases = [];
@@ -199,6 +199,7 @@ export function crearNarrador({ sintesis = null, Enunciado = null, memoria = nul
   let guardia = 0;
   let pausado = false;
   const oyentes = new Set();
+  const oyentesDeFrases = new Set();
   const avisar = () => { for (const f of oyentes) { try { f(); } catch { /* un oyente roto no detiene al resto */ } } };
 
   try { encendido = memoria?.getItem(CLAVE) === '1'; } catch { encendido = false; }
@@ -233,7 +234,7 @@ export function crearNarrador({ sintesis = null, Enunciado = null, memoria = nul
       clearTimeout(guardia);
       guardia = setTimeout(alAcabar, 2500 + frase.texto.length * 90);
       sintesis.speak(u);
-      alHablar?.(frase);
+      for (const f of oyentesDeFrases) { try { f(frase); } catch { /* un oyente roto no detiene al resto */ } }
     } catch {
       soltar();
       pendiente = null;
@@ -250,6 +251,8 @@ export function crearNarrador({ sintesis = null, Enunciado = null, memoria = nul
     encendido: () => encendido && !!voz,
     voz: () => (voz ? { nombre: voz.name || '', idioma: voz.lang } : null),
     alCambiar(f) { oyentes.add(f); return () => oyentes.delete(f); },
+    // Avisa de cada frase que se empieza a decir (para escribirla en pantalla).
+    alDecir(f) { oyentesDeFrases.add(f); return () => oyentesDeFrases.delete(f); },
     encender(si) {
       encendido = !!si;
       try { memoria?.setItem(CLAVE, encendido ? '1' : '0'); } catch { /* sin almacenamiento, vale solo para esta visita */ }
