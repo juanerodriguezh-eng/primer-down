@@ -516,3 +516,14 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 
 ### Turno 10 (sáb 14, 21:59) — arranque
 - La sección "Encargo 4" no existía. Árbol de git limpio (solo `ENCARGO-4.md` sin seguir). Empiezo por el punto 1: parte pura del narrador (`js/narrador.js`) con pruebas, y después el botón en la vista 3D.
+
+### Punto 1, narrador — parte pura LISTA Y PROBADA; todavía SIN botón ni voz en la página (sáb 14, 22:20)
+- **Nuevo `js/narrador.js`** (sin DOM):
+  - `relatoDeJugada(jugada, linea, partido)` → de 2 a 4 frases `{ t, momento, texto }` (oportunidad, acción, atrapada, resultado, marcador) colocadas en los eventos reales de la línea de tiempo (centro, lanzamiento, atrapada, tacleo, touchdown). Solo usa datos de la jugada: oportunidad, apellidos del texto de ESPN, dorsal real, yardas, primer down, marcador. Las frases varían según la jugada (sin azar: la misma jugada siempre se relata igual).
+  - `elegirVoz(voces)` → es-MX, es-US o es-419 primero; después cualquier `es-*`; `null` si no hay.
+  - `crearNarrador({ sintesis, Enunciado, memoria })` → `cargar(frases)`, `avanzar(t)`, `pausar()`, `continuar()`, `callar()`, `encender(si)`. Apagado por defecto, recuerda la elección, nunca encima dos frases (si llegan dos mientras habla, dice la más reciente al terminar) y traga cualquier error de la voz.
+- **Nuevo `pruebas/narrador.test.mjs` (11 pruebas)**, con una voz falsa. Barrido de los 16 partidos: `2454 jugadas narradas, 8131 frases (3.3 por jugada)`; ningún dorsal ni apellido que no esté en la jugada, ningún touchdown inventado.
+- **Para leer relatos:** `node herramientas/ver-relatos.mjs [idPartido] [cada]`.
+- **Verificación:** `npm test` → `tests 165 · pass 165 · fail 0`.
+- **Me corregí leyendo 60 relatos:** faltaba cerrar la coma del inciso ("Daniels, el 5 a la derecha"); una jugada anulada por penal se relataba como buena (ahora dice "la jugada no cuenta"); y al recortar a 4 frases se perdía el lanzamiento en vez de la oportunidad. Además, por sexta vez un script de edición pasado por el shell me dañó una expresión regular (la arreglé con un archivo escrito con la herramienta de edición).
+- **Falta del punto 1:** botón "🔊 Narrador" en la vista 3D, engancharlo al reloj de la animación y a la repetición, callarlo al cambiar de jugada o al ocultar la pestaña, y verificarlo en el navegador.
