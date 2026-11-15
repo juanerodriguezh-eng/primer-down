@@ -509,3 +509,10 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - Miré a ojo `docs/encargo-3-despues.png`, `vista-3d-repeticion.png` y `vista-3d-calidad-alta.png`: marcador de esquina, "3.ª y gol", línea azul bajo los jugadores, rótulos con dorsal y cartel de touchdown se ven bien a 360 px. No encontré defectos nuevos.
 - **No toqué código:** lo que queda pendiente (movimiento y fps en un celular real, partido en vivo del domingo, `git push`) no lo puedo hacer ni comprobar yo. 
 - **Aviso para el dueño:** los turnos programados ("PrimerDown-Fable-Noche" y "PrimerDown-Fable-Dia") van a seguir gastando cupo de Fable sin nada que hacer. Conviene desactivarlos hasta que haya un encargo nuevo.
+
+---
+
+# Encargo 4 (`ENCARGO-4.md`): narrador y jugadas clave
+
+### Turno 10 (sáb 14, 21:59) — arranque
+- La sección "Encargo 4" no existía. Árbol de git limpio (solo `ENCARGO-4.md` sin seguir). Empiezo por el punto 1: parte pura del narrador (`js/narrador.js`) con pruebas, y después el botón en la vista 3D.
