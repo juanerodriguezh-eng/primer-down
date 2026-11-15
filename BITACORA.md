@@ -531,7 +531,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 ### Turno 11 (sáb 14, 22:45) — estado en que encontré todo
 - El turno 10 se cortó con el botón del narrador escrito y **sin anotar ni confirmar**: `js/voz.js` (nuevo), cambios en `js/vista3d.js`, `js/partido.js`, `js/narrador.js`, `css/estilos.css` y el verificador. `npm test` → 165 de 165, pero el verificador daba **2 fallas** en la página nueva `vista-3d-narrador`: el narrador no decía nada.
 
-### Punto 1, narrador — TERMINADO Y VERIFICADO (sáb 14, 23:05)
+### Punto 1, narrador — TERMINADO Y VERIFICADO (sáb 14, 22:56)
 - **Botón "🔊 Narrador"** en la vista 3D (`js/vista3d.js`): apagado por defecto, recuerda la elección (`localStorage`), solo aparece si el navegador tiene una voz `es-*`. Lo que se dice va también escrito sobre la imagen (subtítulo). Sigue el reloj de la animación y vuelve a empezar con "Repetición" y "A ras de cancha"; se calla al cerrar o cambiar de jugada, al pausar, con la pestaña oculta o con la vista fuera de pantalla. Si se enciende a media jugada sigue desde ese instante; si la jugada ya terminó, se vuelve a ver narrada.
 - **Nuevo `js/voz.js`:** une el narrador puro con `speechSynthesis`. `partido.html?...&narrador=simulado` usa una voz muda (para la verificación: el navegador sin ventana no trae voces).
 - **Las 2 fallas y su causa (errores míos del turno 10):**
@@ -542,7 +542,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **No comprobado:** la voz real. No la he oído: ni cómo suena la voz del navegador, ni si el ritmo calza con la jugada. Hay que escucharlo en un navegador normal (en Chrome de escritorio y en un celular).
 - **Sigue:** 2) "Jugadas clave": parte pura con pruebas.
 
-### Punto 2, "Jugadas clave" — parte pura LISTA Y PROBADA; todavía SIN botón ni reproducción en la página (sáb 14, 23:25)
+### Punto 2, "Jugadas clave" — parte pura LISTA Y PROBADA; todavía SIN botón ni reproducción en la página (sáb 14, 22:59)
 - **Nuevo `js/clave.js`** (puro):
   - `elegirJugadasClave(partido, 5)`: si el partido trae `winprobability`, las 5 jugadas que más movieron la probabilidad de ganar; si no, por hechos (`pesoPorHechos`: touchdown, pérdida de balón, cuarta oportunidad fallada o convertida, gol de campo, ganancia de 20 yardas o más; pesa más lo tardío y con marcador cerrado). Solo jugadas que se pueden ver (con recreación), sin pausas ni rodillas al suelo. Orden cronológico. Cada una lleva el marcador de **antes** y una línea de motivo.
   - `motivoDeClave`: "Touchdown de los Commanders: le dio la vuelta al marcador. Subió 49 puntos la probabilidad de ganar de los Commanders." Sale del marcador real de antes y de después; no adorna.
@@ -552,7 +552,7 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Me corregí:** 2 pruebas fallaron por un error mío en la prueba (creí que los Commanders eran locales el jueves; son visitantes). Y por séptima vez el shell me enredó un comando con comillas: no se ejecutó nada y lo rehice con la herramienta de edición.
 - **Falta del punto 2:** `js/modoclave.js` (reproducción continua en 3D con tarjetas, repetición corta, cortina, controles y respaldo 2D), botón "▶ Jugadas clave", `&modo=clave` y el verificador.
 
-### Punto 2, "Jugadas clave" en reproducción continua — TERMINADO Y VERIFICADO (sáb 14, 23:50)
+### Punto 2, "Jugadas clave" en reproducción continua — TERMINADO Y VERIFICADO (sáb 14, 23:15)
 - **Nuevo `js/modoclave.js`:** capa a pantalla completa que reproduce las 5 jugadas clave una tras otra. Por cada una: tarjeta de título (cuarto, reloj, marcador de antes y la línea de por qué fue clave) → la jugada en 3D con cámara de transmisión → repetición corta (los últimos 3 segundos, desde el fondo y en cámara lenta) → cortina "Jugada clave" → la siguiente. Al final, tarjeta con el marcador final y "↺ Ver de nuevo".
 - **Botón "▶ Jugadas clave"** en la página del partido (aparece con el partido terminado, o en vivo cuando ya hay 3 jugadas clave o más; a media repetición no). **URL directa para el video:** `partido.html?id=401873052&modo=clave` (usa el partido guardado si lo hay; si no, ESPN). `&clave=3` arranca en la tercera jugada.
 - **Controles:** "⏸ Pausa / ▶ Seguir", "⏭ Siguiente", "🔊 Narrador" (si hay voz) y "✕ Salir" (también con Escape). En pausa se detienen la jugada, las esperas y el narrador.
@@ -566,3 +566,34 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
   - La secuencia **en movimiento**: solo vi cuadros congelados de cada paso. El ritmo (3,4 s de tarjeta, jugada, repetición de unos 7 s) se ajusta en `js/modoclave.js` (`pasoTitulo`) y `js/clave.js` (`inicioDeRepeticion`).
   - **La voz al abrir por URL directa:** Chrome no deja hablar a una página hasta que la persona toca algo. Para el video: abrir `&modo=clave`, tocar "🔊 Narrador" (o "↺ Ver de nuevo" al final) y grabar desde ahí.
   - En vivo: el botón con un partido en curso solo está probado con partidos simulados.
+
+### Punto 3, cierre: capturas, README y `PROMPTS-FABLE.md` — HECHO (sáb 14, 23:20)
+- `docs/jugadas-clave.png` (la jugada 4 de 5 en reproducción continua, a 1280 px) y `docs/jugadas-clave-tarjeta.png` (su tarjeta de título). La primera va en el README.
+- `README.md`: dos líneas nuevas (narrador y jugadas clave), cifras al día (173 pruebas, 36 páginas, 11 turnos) y lo que falta comprobar.
+- `PROMPTS-FABLE.md`: encargo 4 con su resultado y sus correcciones honestas; tabla y números al día.
+- Ajuste de última hora en `js/partido.js`: en un partido **en vivo** el botón "▶ Jugadas clave" solo aparece cuando hay 3 jugadas que de verdad pesaron (5 puntos de probabilidad o más, o un hecho fuerte). **Me corregí:** al hacerlo, un comentario al final de la línea se tragó el `catch` y dejó el archivo con error de sintaxis; lo delató `node --check` en el mismo paso y quedó arreglado antes de confirmar.
+- Corregí tres horas de este turno que había anotado adelantadas (las tomé del reloj de git).
+
+---
+
+## CIERRE DEL ENCARGO 4 (sábado 14 nov, 23:20)
+
+### Qué cambió
+1. **Narrador en español** en la vista 3D: botón "🔊 Narrador" (apagado por defecto, recuerda la elección, solo aparece si hay voz `es-*`), 2 a 4 frases por jugada sincronizadas con la animación y con la repetición, escritas también sobre la imagen. Se calla al pausar, al cambiar de jugada, al ocultar la pestaña o al salir de pantalla. Archivos: `js/narrador.js` (puro), `js/voz.js`, `js/vista3d.js`.
+2. **"Jugadas clave" en reproducción continua:** botón "▶ Jugadas clave" y `partido.html?id=401873052&modo=clave` (con `&clave=3` arranca en la tercera). Tarjeta de título → jugada en 3D → repetición corta → cortina → siguiente → marcador final. Controles de pausa, siguiente y salir; narrado si el narrador está encendido; pizarra 2D sin WebGL o con "reducir movimiento". Archivos: `js/clave.js` (puro), `js/modoclave.js`, `js/partido.js`.
+3. README, `PROMPTS-FABLE.md` y capturas en `docs/`.
+
+### Cómo se verificó
+- `npm test` → `tests 173 · pass 173 · fail 0` (19 pruebas nuevas: 11 del narrador y 8 de jugadas clave, con barridos de los 16 partidos).
+- `node herramientas/verificar-sitio.mjs` → `Resultado: 0 falla(s), 5 aviso(s)` en 36 páginas (los 5 avisos de siempre: ESPN responde 403 al navegador sin ventana). Las páginas del modo en vivo simulado, del respaldo 2D y de la calidad automática siguen pasando.
+- `node --check` de todos los archivos de `js/` y `herramientas/`.
+- Capturas miradas a ojo a 360 px y a 1280 px (tarjeta, jugada, repetición y marcador final).
+- 5 confirmaciones en git en este turno. **Sin push**, como pide el encargo.
+
+### Qué falta (lo tiene que mirar y oír una persona)
+1. **Oír al narrador** en Chrome de escritorio y en un celular: cómo suena la voz y si el ritmo calza con la jugada. Velocidad y tono: `u.rate` y `u.pitch` en `js/narrador.js`.
+2. **Ver "Jugadas clave" en movimiento** de principio a fin (dura cerca de minuto y medio). Yo solo vi cuadros congelados de cada paso. Ritmo: `pasoTitulo` en `js/modoclave.js` e `inicioDeRepeticion` en `js/clave.js`.
+3. **Para grabar el video:** abrir `partido.html?id=401873052&modo=clave`, tocar "🔊 Narrador" y, si hace falta, "⏭ Siguiente" hasta el final y "↺ Ver de nuevo": Chrome no deja hablar a una página hasta que la persona toca algo.
+4. **`git push`** para publicar (lo publicado sigue siendo el encargo 3).
+5. **Domingo 15, partido en vivo:** sigue pendiente lo de siempre (sondeo real, `drives.current`, `winprobability` y `boxscore.players` en vivo). Nuevo: comprobar que el botón "▶ Jugadas clave" aparece durante un partido en curso y que no molesta.
+6. Sin cambios: fps en un celular real, lector de pantalla y orden de tabulación.

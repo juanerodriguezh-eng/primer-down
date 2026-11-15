@@ -163,7 +163,7 @@ botonClave.addEventListener('click', () => abrirClave(0));
 
 function pintarBotonClave(p) {
   let cuantas = 0;
-  try { cuantas = (p.estado === 'final' || (!p.enRepeticion && p.estado === 'en-vivo')) ? elegirJugadasClave(p, 5).length : 0; } catch { cuantas = 0; }
+  try { cuantas = (p.estado === 'final' || (!p.enRepeticion && p.estado === 'en-vivo')) ? elegirJugadasClave(p, 5).filter((c) => p.estado === 'final' || c.criterio === 'hechos' || Math.abs(c.cambio) >= 0.05).length : 0; } catch { cuantas = 0; }
   const hay = cuantas >= 3;
   zonaClave.hidden = !hay;
   partidoParaClave = hay ? p : null;

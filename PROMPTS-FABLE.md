@@ -15,11 +15,12 @@ Para la parte “Cómo lo hiciste” de la entrada [FABLE]. Cada encargo importa
 |---|---|---|---|
 | Encargo nocturno (vie 13) | 3 | 94 | Versión 1 completa: datos, motor, sitio, repetición, glosario y La Pizarra |
 | Encargo 2 (vie 13 y sáb 14) | 3 | 139 | Modo en vivo probado, vista 3D con Three.js, README, contraste y resumen final |
-| Encargo 3 (sáb 14) | 2 | 154 | Gráficos de TV, luz de estadio, cuerpos de atleta, cámara en mano y estela |
+| Encargo 3 (sáb 14) | 2 (y 1 de comprobación) | 154 | Gráficos de TV, luz de estadio, cuerpos de atleta, cámara en mano y estela |
+| Encargo 4 (sáb 14 en la noche) | 2 | 173 | Narrador en español con la voz del navegador y “Jugadas clave” en reproducción continua |
 
-- **8 turnos** en total. 5 de los 8 empezaron encontrando trabajo del turno anterior sin anotar o sin confirmar, y lo verificaron antes de seguir.
+- **11 turnos** en total (uno, el 9, solo volvió a comprobar el cierre del encargo 3). 6 de los 11 empezaron encontrando trabajo del turno anterior sin anotar o sin confirmar, y lo verificaron antes de seguir.
 - **137 partidos reales** analizados (25.387 jugadas, 32 tipos de jugada); **16 partidos** guardados para el modo repetición (2.982 jugadas, 2.454 recreadas en 3D con 22 jugadores).
-- **154 pruebas** y un verificador que revisa **28 páginas** a 360 px.
+- **173 pruebas** y un verificador que revisa **36 páginas** a 360 px.
 - Cero dependencias de npm, cero claves, cero costo. Única librería: Three.js 0.170.0 y 11 de sus addons, copiados en `js/vendor/`.
 
 ---
@@ -108,6 +109,27 @@ Respeta las restricciones de la sección 2 sin excepción. Si algo de la especif
 - **La primera luz salió lavada y sobreexpuesta:** el bloom alcanzaba a toda la cancha. Se vio en la primera captura y se corrigió bajando luces y subiendo el umbral.
 - **El desenfoque de movimiento a pantalla completa fue un error de diseño.** La captura mostró fantasmas de toda la cancha cada vez que la cámara se movía, y colores cambiados. Fable lo quitó entero y dejó solo la estela del balón, que es lo que de verdad se ve en una transmisión.
 - **Lo que sigue sin comprobarse**, dicho sin adornos: el navegador sin ventana solo muestra cuadros congelados. Nadie ha visto todavía **en movimiento** los gestos nuevos, el temblor de cámara ni la cortina, ni se han medido los fps en un celular real. La calidad automática existe justamente porque eso no se pudo medir.
+
+---
+
+## Encargo 4 (`ENCARGO-4.md`, sábado 14 nov en la noche, 2 turnos)
+
+**Qué pedía, en orden:** dos mejoras para que el video del concurso luzca, sin romper nada antes del partido en vivo del domingo. 1) Narrador en español en la vista 3D con la voz del propio navegador (`speechSynthesis`), con la parte pura aparte y probada; 2) “Jugadas clave” en reproducción continua: elegir las 5 jugadas que decidieron el partido y mostrarlas una tras otra en 3D con tarjeta de título, repetición corta, cortina y marcador final, con una URL directa para grabar; 3) cierre con pruebas, captura, README y este archivo.
+
+**Resultado:**
+- **Narrador** (`js/narrador.js`, puro; `js/voz.js`): de cada jugada salen 2 a 4 frases con su momento, solo con datos de la jugada. En el touchdown de muestra: una frase del lanzamiento con “Daniels, el 5”, una de la atrapada con “Sinnott, el 82”, el touchdown y “Commanders 10, Giants 7.” Prefiere voces es-MX, es-US o es-419; sin voz en español el botón no aparece. Apagado por defecto, recuerda la elección, sigue el reloj de la animación y de la repetición, y se calla al pausar, al cambiar de jugada o al ocultar la pestaña. Lo que dice va escrito sobre la imagen. Barrido: 2.454 jugadas narradas, 8.131 frases, ningún nombre ni dorsal que no esté en la jugada.
+- **Jugadas clave** (`js/clave.js`, puro; `js/modoclave.js`): con `winprobability` se eligen los 5 mayores cambios de probabilidad; sin ella, anotaciones, pérdidas de balón, cuartas oportunidades y ganancias grandes, con más peso para lo tardío y lo cerrado. Cada tarjeta dice cuarto, reloj, marcador de antes y el porqué (“Touchdown de los Commanders: le dio la vuelta al marcador. Subió 49 puntos la probabilidad de ganar de los Commanders.”). Botón “▶ Jugadas clave” y `partido.html?id=...&modo=clave`. Pausa, siguiente y salir; con el narrador encendido también se narra; sin WebGL o con “reducir movimiento” la misma secuencia va en la pizarra 2D.
+- 173 pruebas; verificador con 36 páginas; capturas en `docs/jugadas-clave.png` y `docs/jugadas-clave-tarjeta.png`.
+
+**Salió bien a la primera:** la secuencia completa de jugadas clave, que llegó del título al marcador final en la primera corrida en el navegador, y el barrido de la elección (160 jugadas clave en 16 partidos, con y sin probabilidad).
+
+**Correcciones honestas:**
+- **El turno 10 se cortó con el botón del narrador escrito y sin confirmar, y con el verificador fallando:** el narrador no decía nada. Dos causas, las dos de Fable: al abrir la vista 3D por la dirección la jugada quedaba fuera de pantalla (y ahí el narrador se pausa, como debe), y cuando la jugada saltaba al final por el temporizador de respaldo nadie le avisaba al narrador.
+- **Una comprobación se relajó, y está dicho:** el verificador pedía 3 frases dichas y quedó en 2, porque con los 6 cuadros que dibuja el navegador sin ventana solo salen la primera y la última.
+- **Leyendo 60 relatos** aparecieron una coma sin cerrar, una jugada anulada por penal relatada como buena y un recorte que perdía el lanzamiento en vez de la oportunidad.
+- **Las capturas encontraron lo que las pruebas no ven:** en el modo clave seguían visibles los botones propios de la vista 3D (el atributo `hidden` no les hacía efecto) y el marcador final se partía en dos renglones a 360 px.
+- **Errores de Fable al editar:** dos pruebas fallaron por creer que los Commanders eran locales; un comentario agregado al final de una línea se tragó el `catch` y dejó `partido.js` con error de sintaxis (lo delató `node --check` en el mismo paso); y cuatro veces más el shell dañó o rechazó un comando con comillas o barras invertidas. Además anotó tres horas adelantadas en la bitácora y las corrigió con el reloj de git.
+- **Lo que sigue sin comprobarse:** nadie ha **oído** al narrador ni ha visto la secuencia de jugadas clave **en movimiento**; solo hay cuadros congelados de cada paso y una voz simulada. Y al abrir `&modo=clave` por dirección directa, Chrome no deja hablar hasta que la persona toca algo.
 
 ---
 
