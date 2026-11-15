@@ -646,3 +646,35 @@ Luego abrir http://localhost:8080 en el navegador. (Equivale a `node herramienta
 - **Verificación:** `npm test` → `tests 188 · pass 188 · fail 0`. `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)`. Páginas nuevas: `probabilidad-final`, `probabilidad-abre-3d`, `probabilidad-abre-sin-webgl`, `probabilidad-en-vivo`, `probabilidad-sin-dato`, `probabilidad-sin-movimiento`, `probabilidad-modo-claro` y `probabilidad-teclado-y-puntero` (esta última corre 43 comprobaciones dentro del navegador: teclas, puntero, toque sobre un punto y crecimiento en vivo sin recrear nodos).
 - **No comprobado:** el gesto real con el dedo en un celular (los eventos de puntero se probaron simulados) y un lector de pantalla real.
 - **Sigue:** comprobar la gráfica con el partido real de las 9:30 (NE–DET, datos de ESPN leídos con Node), la mini gráfica opcional y el cierre.
+
+### Punto 3 (opcional), mini gráfica en las jugadas clave — HECHA Y VERIFICADA (dom 15, 09:28)
+- En la tarjeta de título de cada jugada clave va una mini gráfica (240 × 64) con la línea de todo el partido y un punto amarillo en esa jugada. Parte pura: `miniDeClave(serie, id)` en `js/probabilidad.js`; dibujo en `js/modoclave.js` (`miniGrafica`). Si ESPN no trae la probabilidad, si la jugada no tiene dato o si algo falla, la tarjeta sale como antes, sin mini gráfica.
+- **Verificación:** `npm test` → `tests 189 · pass 189 · fail 0` (prueba nueva: 60 o más mini gráficas en los 16 partidos, el punto siempre sobre la línea y dentro de la caja). `node herramientas/verificar-sitio.mjs --capturas` → `0 falla(s), 5 aviso(s)` en 44 páginas (la página `jugadas-clave-titulo` ahora exige la mini gráfica con su descripción). Captura `clave-titulo.png` mirada a ojo a 360 px.
+
+### Punto 4, cierre — HECHO (dom 15, 09:35)
+- `docs/probabilidad.png` (la gráfica del partido del jueves a 720 px, con el cursor en el touchdown de los Giants del 4.º cuarto).
+- `README.md`: una línea nueva ("Probabilidad de ganar"), la captura y cifras al día (189 pruebas, 44 páginas, 14 turnos).
+- `PROMPTS-FABLE.md`: encargo 5 con su resultado y sus correcciones honestas; tabla y números al día.
+
+---
+
+## CIERRE DEL ENCARGO 5 (domingo 15 nov, 09:35)
+
+### Qué cambió
+1. **Gráfica "Probabilidad de ganar"** en la página del partido (encima de "▶ Jugadas clave"): SVG propio, frase de TV arriba, línea entre los dos equipos con sus colores, guía del 50 %, cuartos y puntos en anotaciones, pérdidas de balón y jugadas clave. Interactiva con dedo, mouse y teclado; un punto abre su jugada en 3D (o en la pizarra 2D). En vivo crece con cada sondeo sin recrear nada. Archivos: `js/probabilidad.js` (puro), `js/grafica.js`, `js/partido.js`, `css/estilos.css`.
+2. **Mini gráfica** en la tarjeta de título del modo "Jugadas clave".
+3. **Dato malo de ESPN corregido** (`js/modelo.js`): la jugada que cierra un partido terminado ya no puede dar 100 % al que perdió.
+4. README, `PROMPTS-FABLE.md` y `docs/probabilidad.png`.
+
+### Cómo se verificó
+- `npm test` → `tests 189 · pass 189 · fail 0` (16 pruebas nuevas en `pruebas/probabilidad.test.mjs`, con barridos de los 16 partidos y el simulador en vivo en sus tres formas).
+- `node herramientas/verificar-sitio.mjs --capturas` → `Resultado: 0 falla(s), 5 aviso(s)` en 44 páginas a 360 px (los 5 avisos de siempre: ESPN responde 403 al navegador sin ventana). Todo lo anterior sigue pasando: modo en vivo simulado, vista 3D, narrador, jugadas clave y respaldo 2D.
+- `node --check` de todos los archivos de `js/` y `herramientas/`.
+- Capturas miradas a ojo a 360 px en oscuro y en claro, en vivo simulado y a 720 px.
+- Confirmaciones en git, una por avance. **Sin push**, como pide el encargo.
+
+### Qué falta (lo tiene que mirar una persona)
+1. **Tocar la gráfica con el dedo en un celular:** deslizar a lo ancho debe mover el cursor y deslizar hacia abajo debe seguir bajando la página. Yo solo lo probé con eventos simulados.
+2. **`git push`** para publicar (lo publicado sigue siendo el encargo 4).
+3. **Esta tarde, con partidos en vivo:** comprobar que la gráfica aparece y crece. Si ESPN no entrega `winprobability` en vivo, la sección simplemente no aparece y lo demás sigue igual.
+4. Sin cambios: lector de pantalla real, fps en un celular, oír al narrador.

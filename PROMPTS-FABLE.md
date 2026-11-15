@@ -16,11 +16,12 @@ Para la parte “Cómo lo hiciste” de la entrada [FABLE]. Cada encargo importa
 | Encargo nocturno (vie 13) | 3 | 94 | Versión 1 completa: datos, motor, sitio, repetición, glosario y La Pizarra |
 | Encargo 2 (vie 13 y sáb 14) | 3 | 139 | Modo en vivo probado, vista 3D con Three.js, README, contraste y resumen final |
 | Encargo 3 (sáb 14) | 2 (y 1 de comprobación) | 154 | Gráficos de TV, luz de estadio, cuerpos de atleta, cámara en mano y estela |
-| Encargo 4 (sáb 14 en la noche) | 2 | 173 | Narrador en español con la voz del navegador y “Jugadas clave” en reproducción continua |
+| Encargo 4 (sáb 14 en la noche) | 2 (y 1 de comprobación) | 173 | Narrador en español con la voz del navegador y “Jugadas clave” en reproducción continua |
+| Encargo 5 (dom 15 en la mañana) | 2 | 189 | Gráfica interactiva de probabilidad de ganar, jugada a jugada, y mini gráfica en las jugadas clave |
 
-- **11 turnos** en total (uno, el 9, solo volvió a comprobar el cierre del encargo 3). 6 de los 11 empezaron encontrando trabajo del turno anterior sin anotar o sin confirmar, y lo verificaron antes de seguir.
+- **14 turnos** en total (dos, el 9 y el 12, solo volvieron a comprobar un cierre). 7 de los 14 empezaron encontrando trabajo del turno anterior sin anotar o sin confirmar, y lo verificaron antes de seguir.
 - **137 partidos reales** analizados (25.387 jugadas, 32 tipos de jugada); **16 partidos** guardados para el modo repetición (2.982 jugadas, 2.454 recreadas en 3D con 22 jugadores).
-- **173 pruebas** y un verificador que revisa **36 páginas** a 360 px.
+- **189 pruebas** y un verificador que revisa **44 páginas** a 360 px.
 - Cero dependencias de npm, cero claves, cero costo. Única librería: Three.js 0.170.0 y 11 de sus addons, copiados en `js/vendor/`.
 
 ---
@@ -130,6 +131,30 @@ Respeta las restricciones de la sección 2 sin excepción. Si algo de la especif
 - **Las capturas encontraron lo que las pruebas no ven:** en el modo clave seguían visibles los botones propios de la vista 3D (el atributo `hidden` no les hacía efecto) y el marcador final se partía en dos renglones a 360 px.
 - **Errores de Fable al editar:** dos pruebas fallaron por creer que los Commanders eran locales; un comentario agregado al final de una línea se tragó el `catch` y dejó `partido.js` con error de sintaxis (lo delató `node --check` en el mismo paso); y cuatro veces más el shell dañó o rechazó un comando con comillas o barras invertidas. Además anotó tres horas adelantadas en la bitácora y las corrigió con el reloj de git.
 - **Lo que sigue sin comprobarse:** nadie ha **oído** al narrador ni ha visto la secuencia de jugadas clave **en movimiento**; solo hay cuadros congelados de cada paso y una voz simulada. Y al abrir `&modo=clave` por dirección directa, Chrome no deja hablar hasta que la persona toca algo.
+
+---
+
+## Encargo 5 (`ENCARGO-5.md`, domingo 15 nov en la mañana, 2 turnos)
+
+**Qué pedía, en orden:** el dueño quería “algo interactivo que muestre cómo fue cambiando la probabilidad de ganar de cada equipo”. 1) Parte pura con pruebas: la serie por jugada a partir de `winprobability` de ESPN, con los momentos importantes marcados, y vacía si ESPN no trae el dato (prohibido calcular una probabilidad propia); 2) la gráfica en la página del partido: SVG dibujado con código, interactiva con dedo, mouse y teclado, que abre la jugada en 3D, crece en vivo sin parpadeo y se ve bien a 360 px en claro y oscuro; 3) opcional, una mini gráfica en la tarjeta de las jugadas clave; 4) cierre. Con una condición nueva: esa misma tarde se probaba con partidos en vivo, así que cada avance terminaba probado y confirmado en git, o no se empezaba.
+
+**Resultado:**
+- **Serie pura** (`js/probabilidad.js`): un punto por cada jugada con dato de ESPN, más el pronóstico previo; porcentajes enteros que suman 100, cuarto, reloj, marcador, texto corto y marcas de anotación, pérdida de balón y jugada clave. Barrido: 2.995 puntos en 16 partidos, cada uno igual al dato de ESPN de su jugada.
+- **Frase de TV con datos reales** (`fraseDeTV`): “Los Commanders llegaron a tener solo un 7 % de probabilidad de ganar (4.º cuarto, 2:19) y lo ganaron.” · “Los Jaguars fueron favoritos de principio a fin: su probabilidad de ganar nunca bajó del 81 %.” En vivo: “Ahora mismo los … tienen un 71 % de probabilidad de ganar.”
+- **Gráfica** (`js/grafica.js`): arriba el visitante y abajo el local, cada mitad con el color de su equipo (ajustado para que se distinga del fondo y del rival en los dos temas), línea del 50 %, divisiones por cuarto y puntos en los momentos importantes. Al pasar el dedo o el mouse muestra cuarto, reloj, marcador, porcentajes y la jugada; tocar un punto la abre en 3D (o en la pizarra 2D sin WebGL o con “reducir movimiento”); con teclado, flechas, Inicio, Fin y Enter; para lectores de pantalla es un control deslizante que lee cada punto en palabras. En vivo se actualizan los mismos nodos: nada se borra ni se duplica.
+- **Mini gráfica** en la tarjeta de título de cada jugada clave, con el punto de esa jugada.
+- 189 pruebas; verificador con 44 páginas (8 nuevas, una de ellas corre 43 comprobaciones de teclado, puntero y crecimiento en vivo dentro del navegador); captura en `docs/probabilidad.png`.
+
+**Salió bien a la primera:** la gráfica en el navegador. El turno 13 se cortó con ella escrita y sin confirmar; el turno 14 la encontró con las 188 pruebas y el verificador en verde, y la confirmó tal cual. La mini gráfica también pasó sus comprobaciones en la primera corrida.
+
+**Correcciones honestas:**
+- **Los datos de ESPN volvieron a traer sorpresas, y las encontraron las pruebas:** en Browns 22, Saints 23 la jugada que cierra el partido llega con 0 % para el equipo que ganó, y la línea terminaba del lado del perdedor (ese dato se descarta en partidos terminados; no se inventa otro). Y el simulador del modo en vivo descartaba el pronóstico previo, con lo que la serie rotulaba “Antes del partido” el dato de la patada inicial.
+- **Leer los momentos marcados encontró una “pérdida de balón” que no lo era:** un fumble en el regreso de una patada que recuperó el mismo equipo. La gráfica usa ahora el `isTurnover` de ESPN (coincide en 49 de 49 pérdidas reales). El motor de explicaciones no se tocó, porque esa tarde se probaba en vivo.
+- **Frases mal dichas en la primera versión:** “solo menos de un 1 %” y “llegaron a bajar al 41 %” cuando ese 41 % era el pronóstico del arranque.
+- **Colores:** la primera versión cambiaba el naranja de los Bengals por gris y dejaba a los Colts en blanco.
+- **Dos ajustes que salieron de probar la interacción:** en vivo, “las 5 jugadas que más movieron” podían ser movimientos mínimos (ahora solo se marca lo que movió 5 puntos o más); y cuando una intercepción y el tiempo fuera que le sigue comparten el mismo segundo de reloj, el puntero elegía la pausa.
+- **El error de siempre:** por novena vez un script de edición con una expresión regular falló al pasar por el shell.
+- **Lo que sigue sin comprobarse:** el gesto real con el dedo en un celular (los eventos de puntero se probaron simulados en el navegador sin ventana) y un lector de pantalla real.
 
 ---
 
